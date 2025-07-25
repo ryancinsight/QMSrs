@@ -96,17 +96,23 @@
 ## Phase 2: Risk Management + CAPA System (NEXT STAGE)
 
 ### 2.1 Risk Management Module (ISO 14971)
-- [ ] **TASK-015**: Implement ISO 14971 risk assessment framework
+- [x] **TASK-015**: Implement ISO 14971 risk assessment framework
   - **R**: Developer, **A**: Tech Lead, **C**: Risk Manager, **I**: Compliance
   - **Dependencies**: TASK-014
   - **Tests**: Risk assessment creation, risk evaluation, mitigation tracking
-  - **Status**: 🔄 READY TO START - Next development stage
+  - **Status**: ✅ COMPLETED - Risk assessment framework with ISO 14971 compliance implemented
 
-- [ ] **TASK-016**: Create risk management database schema
+- [x] **TASK-016**: Create risk management database schema
   - **R**: Developer, **A**: Tech Lead, **C**: DBA, **I**: Risk Manager
   - **Dependencies**: TASK-015
   - **Tests**: Risk data persistence, risk matrix calculations, reporting
-  - **Status**: Not Started
+  - **Status**: ✅ COMPLETED - Risk management schema with audit trail integration
+
+- [x] **TASK-016A**: Implement risk assessment service layer
+  - **R**: Developer, **A**: Tech Lead, **C**: Risk Manager, **I**: Compliance
+  - **Dependencies**: TASK-016
+  - **Tests**: Risk assessment CRUD operations, risk matrix calculations
+  - **Status**: ✅ COMPLETED - Risk service with ISO 14971 compliance
 
 ### 2.2 CAPA System Implementation
 - [ ] **TASK-017**: Implement CAPA workflow management

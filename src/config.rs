@@ -10,6 +10,9 @@ pub struct Config {
     
     /// FDA compliance settings
     pub compliance: ComplianceConfig,
+    
+    /// Logging configuration
+    pub logging: LoggingConfig,
 }
 
 /// Application configuration
@@ -47,6 +50,34 @@ pub struct ComplianceConfig {
     /// CFR Part 11 compliance mode
     #[serde(default = "default_true")]
     pub cfr_part_11_mode: bool,
+}
+
+/// Logging configuration for audit trail
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoggingConfig {
+    /// Log level (error, warn, info, debug, trace)
+    #[serde(default = "default_log_level")]
+    pub level: String,
+    
+    /// Log file path
+    #[serde(default = "default_log_file")]
+    pub file: String,
+    
+    /// Use JSON format for structured logging
+    #[serde(default = "default_true")]
+    pub json_format: bool,
+    
+    /// Maximum log file size in MB
+    #[serde(default = "default_log_size")]
+    pub max_size_mb: u64,
+    
+    /// Number of log files to retain
+    #[serde(default = "default_log_retention")]
+    pub retention_count: u32,
+    
+    /// Encrypt log files for FDA compliance
+    #[serde(default = "default_true")]
+    pub encrypt_logs: bool,
 }
 
 impl Config {
@@ -98,6 +129,7 @@ impl Default for Config {
         Self {
             application: ApplicationConfig::default(),
             compliance: ComplianceConfig::default(),
+            logging: LoggingConfig::default(),
         }
     }
 }
@@ -124,10 +156,27 @@ impl Default for ComplianceConfig {
     }
 }
 
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self {
+            level: default_log_level(),
+            file: default_log_file(),
+            json_format: default_true(),
+            max_size_mb: default_log_size(),
+            retention_count: default_log_retention(),
+            encrypt_logs: default_true(),
+        }
+    }
+}
+
 // Default value functions
 fn default_true() -> bool { true }
 fn default_data_dir() -> String { "./qms-data".to_string() }
 fn default_audit_retention() -> u32 { 2555 } // 7 years
+fn default_log_level() -> String { "info".to_string() }
+fn default_log_file() -> String { "./qms-data/audit.log".to_string() }
+fn default_log_size() -> u64 { 10 }
+fn default_log_retention() -> u32 { 30 }
 
 #[cfg(test)]
 mod tests {
