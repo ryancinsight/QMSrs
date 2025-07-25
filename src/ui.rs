@@ -276,7 +276,7 @@ let i = match self.supplier_list_state.selected() {
             TabState::Documents => self.documents_list_state.select(Some(2)), // 3 items, index 2
             TabState::AuditTrail => self.audit_list_state.select(Some(2)), // 3 items, index 2
             TabState::Capa => self.capa_list_state.select(Some(2)), // 3 items, index 2
-            TabState::Suppliers => self.supplier_list_state.select(Some(4)), // 5 items, index 4
+TabState::Suppliers => self.supplier_list_state.select(Some(self.get_supplier_list_items().len() - 1)),
             TabState::Training => self.training_list_state.select(Some(3)), // 4 items index 3
             TabState::Reports => self.reports_list_state.select(Some(2)), // 3 items, index 2
         }
