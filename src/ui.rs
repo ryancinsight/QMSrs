@@ -228,11 +228,14 @@ let i = match self.supplier_list_state.selected() {
                 self.capa_list_state.select(Some(i));
             }
             TabState::Suppliers => {
-                let len = 5;
-                let i = match self.supplier_list_state.selected() {
-                    Some(i) => if i >= len - 1 { 0 } else { i + 1 },
-                    None => 0,
-                };
+let len = self.get_supplier_list_items().len();
+if len == 0 {
+    return;
+}
+let i = match self.supplier_list_state.selected() {
+    Some(i) => (i + 1) % len,
+    None => 0,
+};
                 self.supplier_list_state.select(Some(i));
             }
             TabState::Training => {
