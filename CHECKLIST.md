@@ -363,19 +363,25 @@
   - **Status**: ✅ COMPLETED – metrics cache with 2-sec TTL implemented, tests passing
 
 ### 4.2 PDF Compliance Reporting
-- [ ] **TASK-032**: Design PDF reporting templates
+- [x] **TASK-032**: Design PDF reporting templates ✅ **COMPLETED**
   - **R**: UX Designer
   - **A**: Product Owner
-  - **C**: Compliance
-  - **I**: Stakeholders
-  - **Status**: ⏳ PENDING
-- [ ] **TASK-033**: Implement PDF export engine
+  - **C**: Compliance, QA
+  - **I**: Stakeholders, Auditors
+  - **Tests**: Template snapshot comparison, branding checks – passing
+  - **Status**: Completed – Modular template system using `pdf_canvas` with corporate styling locked via unit tests.
+- [x] **TASK-033**: Implement PDF export engine ✅ **COMPLETED**
   - **R**: Developer
   - **A**: Tech Lead
   - **C**: QA, Compliance
   - **I**: Users, Auditors
   - **Dependencies**: TASK-032
-  - **Status**: ⏳ PENDING
+  - **Tests**: `pdf_report::test_generate_compliance_report` (1 test) – passing
+  - **Implementation Details**:
+    - ✅ Added `pdf_canvas` dependency & atomic generation routines
+    - ✅ New module `src/pdf_report.rs` with FIRST-compliant test
+    - ✅ Integrated into lib via `pub mod pdf_report;`
+  - **Compliance**: Report header/footer includes version stamp and immutable hash placeholder per FDA guidance
 
 ### 4.3 Accessibility & UX
 - [ ] **TASK-034**: Keyboard navigation audit (WCAG)
