@@ -347,15 +347,12 @@ impl RiskManagementService {
         let mut pending_control_measures = 0;
 
         for assessment in assessments {
-            // Count risk levels
+            // Combine counting operations into a single loop
             let level_key = format!("Level_{}", assessment.initial_risk_level);
             *risk_level_distribution.entry(level_key).or_insert(0) += 1;
 
-            // Count acceptability
             let acceptability_key = format!("{:?}", assessment.acceptability);
             *acceptability_distribution.entry(acceptability_key).or_insert(0) += 1;
-
-            // Count pending control measures
             pending_control_measures += assessment.control_measures.iter()
                 .filter(|cm| cm.verification_status == VerificationStatus::Pending)
                 .count();
