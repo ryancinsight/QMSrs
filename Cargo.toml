@@ -33,6 +33,9 @@ base64 = "0.21"
 # Configuration
 toml = "0.5"
 
+# CLI argument parsing
+clap = { version = "4.0", features = ["derive"] }
+
 # Error Handling
 thiserror = "1.0"
 anyhow = "1.0"

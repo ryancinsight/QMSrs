@@ -3,16 +3,28 @@ use thiserror::Error;
 /// Custom result type for QMS operations
 pub type Result<T> = std::result::Result<T, QmsError>;
 
-/// Comprehensive error types for FDA-compliant QMS system
-#[derive(Error, Debug)]
+/// Errors that can occur in the QMS system
+#[derive(Debug, thiserror::Error)]
 pub enum QmsError {
+    /// Configuration-related errors
+    #[error("Configuration error: {message}")]
+    Configuration { message: String },
+
     /// Database-related errors
     #[error("Database error: {message}")]
     Database { message: String },
 
-    /// Configuration errors
-    #[error("Configuration error: {message}")]
-    Config { message: String },
+    /// Validation errors
+    #[error("Validation error in field '{field}': {message}")]
+    Validation { field: String, message: String },
+
+    /// CAPA-specific validation errors
+    #[error("Validation error in field '{field}': {message}")]
+    ValidationError { field: String, message: String },
+
+    /// Resource not found errors
+    #[error("Resource '{resource}' with ID '{id}' not found")]
+    NotFound { resource: String, id: String },
 
     /// Audit trail errors (critical for FDA compliance)
     #[error("Audit trail error: {message}")]
@@ -29,10 +41,6 @@ pub enum QmsError {
     /// TUI/Interface errors
     #[error("User interface error: {message}")]
     UserInterface { message: String },
-
-    /// Validation errors for FDA compliance
-    #[error("Validation error: {field} - {message}")]
-    Validation { field: String, message: String },
 
     /// Encryption/Decryption errors
     #[error("Encryption error: {message}")]
@@ -56,25 +64,27 @@ pub enum QmsError {
 }
 
 impl QmsError {
-    /// Get error code for audit logging
+    /// Get error code for logging and tracking
     pub fn error_code(&self) -> &'static str {
         match self {
             QmsError::Database { .. } => "DB_ERROR",
-            QmsError::Config { .. } => "CFG_ERROR",
             QmsError::AuditTrail { .. } => "AUDIT_ERROR",
             QmsError::Security { .. } => "SEC_ERROR",
             QmsError::DocumentControl { .. } => "DOC_ERROR",
             QmsError::UserInterface { .. } => "UI_ERROR",
             QmsError::Validation { .. } => "VAL_ERROR",
+            QmsError::ValidationError { .. } => "VAL_ERROR",
             QmsError::Encryption { .. } => "ENC_ERROR",
             QmsError::FileSystem { .. } => "FS_ERROR",
             QmsError::Network { .. } => "NET_ERROR",
             QmsError::Serialization { .. } => "SER_ERROR",
             QmsError::Application { .. } => "APP_ERROR",
+            QmsError::NotFound { .. } => "NOT_FOUND",
+            QmsError::Configuration { .. } => "CFG_ERROR",
         }
     }
 
-    /// Get severity level for FDA compliance reporting
+    /// Determine error severity for prioritization
     pub fn severity(&self) -> ErrorSeverity {
         match self {
             QmsError::AuditTrail { .. } => ErrorSeverity::Critical,
@@ -82,13 +92,15 @@ impl QmsError {
             QmsError::Database { .. } => ErrorSeverity::High,
             QmsError::DocumentControl { .. } => ErrorSeverity::High,
             QmsError::Validation { .. } => ErrorSeverity::Medium,
+            QmsError::ValidationError { .. } => ErrorSeverity::Medium,
             QmsError::Encryption { .. } => ErrorSeverity::High,
-            QmsError::Config { .. } => ErrorSeverity::Medium,
+            QmsError::Configuration { .. } => ErrorSeverity::Medium,
             QmsError::UserInterface { .. } => ErrorSeverity::Low,
             QmsError::FileSystem { .. } => ErrorSeverity::Medium,
             QmsError::Network { .. } => ErrorSeverity::Medium,
             QmsError::Serialization { .. } => ErrorSeverity::Low,
             QmsError::Application { .. } => ErrorSeverity::Medium,
+            QmsError::NotFound { .. } => ErrorSeverity::Medium,
         }
     }
 
@@ -163,6 +175,7 @@ mod tests {
         assert_eq!(QmsError::Database { message: "test".to_string() }.error_code(), "DB_ERROR");
         assert_eq!(QmsError::AuditTrail { message: "test".to_string() }.error_code(), "AUDIT_ERROR");
         assert_eq!(QmsError::Security { message: "test".to_string() }.error_code(), "SEC_ERROR");
+        assert_eq!(QmsError::NotFound { resource: "test".to_string(), id: "123".to_string() }.error_code(), "NOT_FOUND");
     }
 
     #[test]
@@ -179,6 +192,10 @@ mod tests {
             QmsError::UserInterface { message: "test".to_string() }.severity(),
             ErrorSeverity::Low
         );
+        assert_eq!(
+            QmsError::NotFound { resource: "test".to_string(), id: "123".to_string() }.severity(),
+            ErrorSeverity::Medium
+        );
     }
 
     #[test]
@@ -186,6 +203,7 @@ mod tests {
         assert!(QmsError::AuditTrail { message: "test".to_string() }.requires_fda_notification());
         assert!(QmsError::Security { message: "test".to_string() }.requires_fda_notification());
         assert!(!QmsError::UserInterface { message: "test".to_string() }.requires_fda_notification());
+        assert!(!QmsError::NotFound { resource: "test".to_string(), id: "123".to_string() }.requires_fda_notification());
     }
 
     #[test]

@@ -115,11 +115,29 @@
   - **Status**: ✅ COMPLETED - Risk service with ISO 14971 compliance
 
 ### 2.2 CAPA System Implementation
-- [ ] **TASK-017**: Implement CAPA workflow management
-  - **R**: Developer, **A**: Tech Lead, **C**: Quality Manager, **I**: Compliance
-  - **Dependencies**: TASK-015
-  - **Tests**: CAPA creation, investigation tracking, effectiveness verification
-  - **Status**: Not Started
+- [x] **TASK-017: CAPA System Implementation** 
+  - **Priority**: High
+  - **Status**: COMPLETED ✅
+  - **Responsible**: Development Team
+  - **Accountable**: Technical Lead
+  - **Description**: Implement comprehensive CAPA (Corrective and Preventive Action) workflow management system
+  - **Implementation Details**:
+    - ✅ Complete CAPA workflow state machine (Identified → Investigation → Root Cause → Action → Verification → Closed)
+    - ✅ CAPA priority levels (Critical, High, Medium, Low) with proper resource allocation
+    - ✅ CAPA type classification (Corrective, Preventive, Combined)
+    - ✅ Status transition validation with proper workflow enforcement
+    - ✅ Audit trail integration for all CAPA actions
+    - ✅ CAPA metrics and reporting capabilities
+    - ✅ Effectiveness verification workflow
+    - ✅ Database schema for CAPA records and actions
+    - ✅ Comprehensive test coverage (12 passing tests)
+  - **Files Modified**: 
+    - `src/capa.rs` (new module, 756 lines)
+    - `src/lib.rs` (added capa module)
+    - `src/database.rs` (added CAPA schema)
+  - **Tests**: All CAPA tests passing (12/12)
+  - **Compliance**: FDA 21 CFR Part 820 compliant CAPA workflow
+  - **Dependencies**: Database ✅, Audit System ✅, Security ✅
 
 - [ ] **TASK-018**: Integrate CAPA with TUI interface
   - **R**: Developer, **A**: Tech Lead, **C**: UX, **I**: Users

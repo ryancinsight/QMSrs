@@ -52,8 +52,8 @@ impl Cli {
 
         // Validate config file path
         if !self.generate_config && !self.config_path.exists() && !self.init_db {
-            return Err(crate::QmsError::Config {
-                message: format!("Configuration file not found: {}", self.config_path.display()),
+            return Err(crate::QmsError::Configuration {
+                message: format!("Config file not found: {}", self.config_path.display()),
             });
         }
 

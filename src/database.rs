@@ -1,4 +1,4 @@
-use crate::{Result, QmsError, logging::AuditLogEntry};
+use crate::{Result, QmsError, logging::AuditLogEntry, config::DatabaseConfig};
 use rusqlite::{Connection, params};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -11,16 +11,6 @@ use serde::{Serialize, Deserialize};
 #[derive(Clone)]
 pub struct Database {
     pool: Pool<SqliteConnectionManager>,
-}
-
-/// Database configuration
-#[derive(Debug, Clone)]
-pub struct DatabaseConfig {
-    pub url: String,
-    pub max_connections: u32,
-    pub wal_mode: bool,
-    pub backup_interval_hours: u32,
-    pub backup_retention_days: u32,
 }
 
 impl Database {
@@ -102,11 +92,78 @@ impl Database {
                 salt TEXT NOT NULL,
                 role TEXT NOT NULL,
                 is_active BOOLEAN NOT NULL DEFAULT 1,
-                failed_login_attempts INTEGER DEFAULT 0,
-                locked_until TEXT,
                 last_login TEXT,
+                failed_login_attempts INTEGER NOT NULL DEFAULT 0,
+                locked_until TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )",
+            [],
+        )?;
+
+        // TASK-017: CAPA System Database Schema
+        // Create CAPA records table
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS capa_records (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL,
+                capa_type TEXT NOT NULL CHECK (capa_type IN ('Corrective', 'Preventive', 'Combined')),
+                priority TEXT NOT NULL CHECK (priority IN ('Critical', 'High', 'Medium', 'Low')),
+                status TEXT NOT NULL CHECK (status IN ('Identified', 'InvestigationInProgress', 'RootCauseAnalysis', 'CorrectiveActionInProgress', 'PreventiveActionInProgress', 'EffectivenessVerification', 'Closed', 'Cancelled')),
+                initiator_id TEXT NOT NULL,
+                assigned_to TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                due_date TEXT,
+                closed_date TEXT,
+                source_document TEXT,
+                related_risk_id TEXT,
+                investigation_summary TEXT,
+                root_cause TEXT,
+                metadata TEXT, -- JSON blob for additional metadata
+                FOREIGN KEY (initiator_id) REFERENCES users(id),
+                FOREIGN KEY (assigned_to) REFERENCES users(id)
+            )",
+            [],
+        )?;
+
+        // Create CAPA actions table
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS capa_actions (
+                id TEXT PRIMARY KEY,
+                capa_id TEXT NOT NULL,
+                action_type TEXT NOT NULL CHECK (action_type IN ('Corrective', 'Preventive')),
+                description TEXT NOT NULL,
+                assigned_to TEXT NOT NULL,
+                due_date TEXT NOT NULL,
+                completed_date TEXT,
+                verification_method TEXT NOT NULL,
+                status TEXT NOT NULL CHECK (status IN ('Planned', 'InProgress', 'Completed', 'Verified', 'Overdue')),
+                evidence TEXT, -- JSON array of evidence file paths
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (capa_id) REFERENCES capa_records(id) ON DELETE CASCADE,
+                FOREIGN KEY (assigned_to) REFERENCES users(id)
+            )",
+            [],
+        )?;
+
+        // Create CAPA effectiveness verification table
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS capa_effectiveness_verification (
+                id TEXT PRIMARY KEY,
+                capa_id TEXT NOT NULL UNIQUE,
+                verification_date TEXT NOT NULL,
+                verifier_id TEXT NOT NULL,
+                method TEXT NOT NULL,
+                results TEXT NOT NULL,
+                is_effective BOOLEAN NOT NULL,
+                follow_up_required BOOLEAN NOT NULL,
+                follow_up_actions TEXT, -- JSON array of follow-up actions
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (capa_id) REFERENCES capa_records(id) ON DELETE CASCADE,
+                FOREIGN KEY (verifier_id) REFERENCES users(id)
             )",
             [],
         )?;
@@ -312,7 +369,8 @@ impl Database {
         params.push(Box::new(offset));
 
         let mut stmt = conn.prepare(&query)?;
-        let audit_iter = stmt.query_map(params.iter().map(|p| p.as_ref()), |row| {
+        let params_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+        let audit_iter = stmt.query_map(params_refs.as_slice(), |row| {
             Ok(AuditTrailEntry {
                 id: row.get(0)?,
                 timestamp: row.get(1)?,

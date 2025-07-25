@@ -1,12 +1,12 @@
 use crate::{
-    Result, QmsError,
-    config::Config,
+    config::{Config, DatabaseConfig},
     database::Database,
     security::SecurityManager,
     audit::AuditManager,
     document::DocumentManager,
     ui::TuiApp,
     logging::{AuditLogEntry, AuditOutcome},
+    Result, QmsError,
 };
 use ratatui::{
     backend::CrosstermBackend,
@@ -39,7 +39,7 @@ impl App {
         let database = Database::new(config.database.clone())?;
         
         // Initialize security manager
-        let security_manager = SecurityManager::new(config.security.clone());
+        let security_manager = SecurityManager::new(config.security.clone())?;
         
         // Initialize audit manager
         let audit_manager = AuditManager::new(database.clone());
@@ -229,21 +229,6 @@ pub struct SystemStatus {
     pub active_sessions: usize,
     pub last_backup: Option<chrono::DateTime<Utc>>,
     pub encryption_enabled: bool,
-}
-
-// Implement Clone for Database (simplified for this example)
-impl Clone for Database {
-    fn clone(&self) -> Self {
-        // In a real implementation, you'd want to share the connection or create a new one
-        // For this example, we'll create a new database instance
-        Self::new(crate::config::DatabaseConfig {
-            url: ":memory:".to_string(),
-            max_connections: 10,
-            wal_mode: false,
-            backup_interval_hours: 24,
-            backup_retention_days: 90,
-        }).unwrap()
-    }
 }
 
 #[cfg(test)]
