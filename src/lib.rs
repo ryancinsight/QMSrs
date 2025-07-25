@@ -17,6 +17,14 @@
 pub mod config;
 pub mod document;
 pub mod error;
+pub mod ui;
+// Temporarily commented out for dependency resolution
+// pub mod app;
+// pub mod database;
+// pub mod security;
+// pub mod audit;
+// pub mod logging;
+// pub mod cli;
 
 pub use error::{QmsError, Result};
 
