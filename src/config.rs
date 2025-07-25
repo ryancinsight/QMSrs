@@ -13,6 +13,12 @@ pub struct Config {
     
     /// Logging configuration
     pub logging: LoggingConfig,
+    
+    /// Database configuration
+    pub database: DatabaseConfig,
+    
+    /// Security configuration
+    pub security: SecurityConfig,
 }
 
 /// Application configuration
@@ -83,13 +89,13 @@ pub struct LoggingConfig {
 impl Config {
     /// Load configuration from file
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let content = std::fs::read_to_string(&path)
-            .map_err(|e| QmsError::Config {
+        let content = std::fs::read_to_string(path)
+            .map_err(|e| QmsError::Configuration {
                 message: format!("Failed to read config file: {}", e),
             })?;
 
         let config: Config = toml::from_str(&content)
-            .map_err(|e| QmsError::Config {
+            .map_err(|e| QmsError::Configuration {
                 message: format!("Failed to parse config file: {}", e),
             })?;
 
@@ -130,6 +136,8 @@ impl Default for Config {
             application: ApplicationConfig::default(),
             compliance: ComplianceConfig::default(),
             logging: LoggingConfig::default(),
+            database: DatabaseConfig::default(),
+            security: SecurityConfig::default(),
         }
     }
 }
@@ -177,6 +185,112 @@ fn default_log_level() -> String { "info".to_string() }
 fn default_log_file() -> String { "./qms-data/audit.log".to_string() }
 fn default_log_size() -> u64 { 10 }
 fn default_log_retention() -> u32 { 30 }
+
+/// Database configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DatabaseConfig {
+    /// Database URL (file path or :memory:)
+    #[serde(default = "default_database_url")]
+    pub url: String,
+    
+    /// Maximum number of connections in pool
+    #[serde(default = "default_max_connections")]
+    pub max_connections: u32,
+    
+    /// Enable WAL mode for better concurrency
+    #[serde(default = "default_true")]
+    pub wal_mode: bool,
+    
+    /// Backup interval in hours
+    #[serde(default = "default_backup_interval")]
+    pub backup_interval_hours: u32,
+    
+    /// Backup retention period in days
+    #[serde(default = "default_backup_retention")]
+    pub backup_retention_days: u32,
+}
+
+impl Default for DatabaseConfig {
+    fn default() -> Self {
+        Self {
+            url: default_database_url(),
+            max_connections: default_max_connections(),
+            wal_mode: true,
+            backup_interval_hours: default_backup_interval(),
+            backup_retention_days: default_backup_retention(),
+        }
+    }
+}
+
+/// Security configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SecurityConfig {
+    /// Enable encryption at rest
+    #[serde(default = "default_true")]
+    pub encryption_enabled: bool,
+    
+    /// Session timeout in minutes
+    #[serde(default = "default_session_timeout")]
+    pub session_timeout_minutes: u32,
+    
+    /// Maximum failed login attempts before lockout
+    #[serde(default = "default_max_failed_logins")]
+    pub max_failed_login_attempts: u32,
+    
+    /// Account lockout duration in minutes
+    #[serde(default = "default_lockout_duration")]
+    pub lockout_duration_minutes: u32,
+    
+    /// Require two-factor authentication
+    #[serde(default = "default_false")]
+    pub require_2fa: bool,
+}
+
+impl Default for SecurityConfig {
+    fn default() -> Self {
+        Self {
+            encryption_enabled: true,
+            session_timeout_minutes: default_session_timeout(),
+            max_failed_login_attempts: default_max_failed_logins(),
+            lockout_duration_minutes: default_lockout_duration(),
+            require_2fa: false,
+        }
+    }
+}
+
+// Default value functions for database config
+fn default_database_url() -> String {
+    "data/qms.db".to_string()
+}
+
+fn default_max_connections() -> u32 {
+    10
+}
+
+fn default_backup_interval() -> u32 {
+    24
+}
+
+fn default_backup_retention() -> u32 {
+    90
+}
+
+// Default value functions for security config
+fn default_session_timeout() -> u32 {
+    30
+}
+
+fn default_max_failed_logins() -> u32 {
+    5
+}
+
+fn default_lockout_duration() -> u32 {
+    15
+}
+
+fn default_false() -> bool {
+    false
+}
 
 #[cfg(test)]
 mod tests {

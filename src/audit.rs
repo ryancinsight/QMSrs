@@ -1,6 +1,9 @@
-use crate::{Result, QmsError, database::Database, logging::{AuditLogEntry, AuditOutcome}};
-use serde::{Serialize, Deserialize};
+use crate::error::{QmsError, Result};
+use crate::database::Database;
+use crate::config::ComplianceConfig;
+use crate::logging::{AuditLogEntry, AuditOutcome};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Audit trail manager for FDA compliance
@@ -9,9 +12,50 @@ pub struct AuditManager {
 }
 
 impl AuditManager {
-    /// Create new audit manager
+    /// Create a new audit manager with database connection
     pub fn new(database: Database) -> Self {
         Self { database }
+    }
+
+    /// Log an action for audit trail
+    pub fn log_action(
+        &self,
+        user_id: &str,
+        action: &str,
+        resource: &str,
+        outcome: &str,
+        metadata: Option<String>,
+    ) -> Result<()> {
+        use uuid::Uuid;
+        use chrono::Utc;
+
+        let audit_outcome = match outcome.to_lowercase().as_str() {
+            "success" => AuditOutcome::Success,
+            "failure" => AuditOutcome::Failure,
+            "warning" => AuditOutcome::Warning,
+            _ => AuditOutcome::Success, // Default to success
+        };
+
+        let metadata_json = metadata
+            .map(|m| serde_json::from_str(&m).unwrap_or_else(|_| serde_json::Value::String(m)))
+            .unwrap_or(serde_json::Value::Null);
+
+        let entry = AuditLogEntry {
+            timestamp: Utc::now(),
+            user_id: user_id.to_string(),
+            action: action.to_string(),
+            resource: resource.to_string(),
+            outcome: audit_outcome,
+            ip_address: Some("127.0.0.1".to_string()), // Default for now
+            session_id: Uuid::new_v4().to_string(),
+            metadata: metadata_json,
+            compliance_version: "21CFR820".to_string(),
+            signature_hash: None,
+        };
+
+        // Store the audit entry in the database
+        self.database.insert_audit_entry(&entry)?;
+        Ok(())
     }
 
     /// Log an audit event
@@ -126,10 +170,12 @@ impl AuditLogger {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::DatabaseConfig;
+    use crate::config::DatabaseConfig;
 
     #[test]
     fn test_audit_manager_creation() {
+        use crate::config::DatabaseConfig;
+        
         let config = DatabaseConfig {
             url: ":memory:".to_string(),
             max_connections: 10,

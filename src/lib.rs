@@ -14,18 +14,18 @@
 //! The system follows SOLID principles and implements comprehensive testing
 //! to ensure reliability and regulatory compliance.
 
+pub mod app;
+pub mod audit;
+pub mod cli;
 pub mod config;
+pub mod database;
 pub mod document;
 pub mod error;
-pub mod ui;
-pub mod risk;
-pub mod audit;
 pub mod logging;
-pub mod database;
-// Temporarily commented out for dependency resolution
-// pub mod app;
-// pub mod security;
-// pub mod cli;
+pub mod risk;
+pub mod security;
+pub mod ui;
+pub mod capa;  // TASK-017: CAPA workflow management
 
 pub use error::{QmsError, Result};
 
