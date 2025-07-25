@@ -29,6 +29,7 @@ use crate::config::DatabaseConfig;
 use crate::database::Database;
 use crate::supplier::{Supplier, SupplierService, SupplierMetrics};
 use crate::training::{TrainingMetrics, TrainingRecord, TrainingService};
+use chrono::Duration as ChronoDuration;
 
 /// In-memory representation of an API token with TTL & scopes.
 #[derive(Clone, Debug)]
@@ -98,6 +99,8 @@ pub struct ApiState {
     pub training_records: Arc<RwLock<Vec<TrainingRecord>>>,
     /// Token manager holding API auth tokens
     pub token_manager: TokenManager,
+    /// Cached metrics response with expiry (performance optimization)
+    pub metrics_cache: Arc<RwLock<Option<(MetricsResponse, DateTime<Utc>)>>>,
 }
 
 impl ApiState {
@@ -140,6 +143,7 @@ impl ApiState {
             suppliers: Arc::new(RwLock::new(Vec::new())),
             training_records: Arc::new(RwLock::new(Vec::new())),
             token_manager: TokenManager::new(),
+            metrics_cache: Arc::new(RwLock::new(None)),
         }
     }
 }
@@ -155,6 +159,15 @@ pub struct MetricsResponse {
 
 /// Handler for `GET /metrics`.
 async fn get_metrics(State(state): State<ApiState>) -> impl IntoResponse {
+    const TTL_SEC: i64 = 2;
+    let now = Utc::now();
+    // Check cache first (fast path)
+    if let Some((cached, expires)) = state.metrics_cache.read().unwrap().clone() {
+        if now < expires {
+            return (StatusCode::OK, Json(cached)).into_response();
+        }
+    }
+
     // Gather a snapshot of data under read locks to ensure consistency.
     let capa_records = state.capa_records.read().unwrap().clone();
     let risk_assessments = state.risk_assessments.read().unwrap().clone();
@@ -173,7 +186,12 @@ async fn get_metrics(State(state): State<ApiState>) -> impl IntoResponse {
         }
     };
 
-    (StatusCode::OK, Json(MetricsResponse { capa_metrics, risk_report })).into_response()
+    let response = MetricsResponse { capa_metrics, risk_report };
+
+    // Store in cache
+    *state.metrics_cache.write().unwrap() = Some((response.clone(), now + ChronoDuration::seconds(TTL_SEC)));
+
+    (StatusCode::OK, Json(response)).into_response()
 }
 
 /// Handler for `GET /supplier_metrics`.
@@ -474,5 +492,25 @@ mod tests {
         let bytes = hyper::body::to_bytes(resp.into_body()).await.unwrap();
         let metrics: TrainingMetrics = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(metrics.total_count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_metrics_endpoint_cached() {
+        use axum::http::header::{AUTHORIZATION, HeaderValue};
+        let (router, state) = setup_test_router().await;
+        // Obtain token
+        let default_token = state.token_manager.tokens.read().unwrap().keys().next().unwrap().clone();
+        let req = |uri: &str| Request::builder()
+            .method(Method::GET)
+            .uri(uri)
+            .header(AUTHORIZATION, HeaderValue::from_str(&format!("Bearer {}", default_token)).unwrap())
+            .body(Body::empty())
+            .unwrap();
+        // First request – populates cache
+        let resp1 = router.clone().oneshot(req("/metrics")).await.unwrap();
+        assert_eq!(resp1.status(), StatusCode::OK);
+        // Second request – should hit cache
+        let resp2 = router.oneshot(req("/metrics")).await.unwrap();
+        assert_eq!(resp2.status(), StatusCode::OK);
     }
 }

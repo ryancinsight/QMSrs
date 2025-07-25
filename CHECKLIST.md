@@ -349,3 +349,34 @@
 - [x] External API security verified
 - [ ] Performance benchmarks met (<100ms per request)  <!-- still pending -->
 - [x] Security assessment passed
+
+## Phase 4: Performance Optimization & PDF Reporting (NEW)
+
+### 4.1 Performance Optimization
+- [ ] **TASK-031**: Implement in-memory caching for metrics endpoints
+  - **R**: Developer
+  - **A**: Tech Lead
+  - **C**: QA, DevOps
+  - **I**: Users
+  - **Dependencies**: TASK-023
+  - **Tests**: Response latency mock test (<100ms), cache hit validation
+  - **Status**: ✅ COMPLETED – metrics cache with 2-sec TTL implemented, tests passing
+
+### 4.2 PDF Compliance Reporting
+- [ ] **TASK-032**: Design PDF reporting templates
+  - **R**: UX Designer
+  - **A**: Product Owner
+  - **C**: Compliance
+  - **I**: Stakeholders
+  - **Status**: ⏳ PENDING
+- [ ] **TASK-033**: Implement PDF export engine
+  - **R**: Developer
+  - **A**: Tech Lead
+  - **C**: QA, Compliance
+  - **I**: Users, Auditors
+  - **Dependencies**: TASK-032
+  - **Status**: ⏳ PENDING
+
+### 4.3 Accessibility & UX
+- [ ] **TASK-034**: Keyboard navigation audit (WCAG)
+- [ ] **TASK-035**: High-contrast color theme
