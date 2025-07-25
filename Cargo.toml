@@ -17,6 +17,19 @@ chrono = { version = "0.4", features = ["serde"] }
 # UUID for unique identifiers  
 uuid = { version = "1.0", features = ["v4", "serde"] }
 
+# Database with connection pool
+rusqlite = { version = "0.29", features = ["bundled", "chrono", "serde_json"] }
+r2d2 = "0.8"
+r2d2_sqlite = "0.22"
+
+# TUI Framework (re-adding for complete implementation)
+ratatui = "0.23"
+crossterm = "0.26"
+
+# Encryption for proper digital signatures
+ring = "0.17"
+base64 = "0.21"
+
 # Configuration
 toml = "0.5"
 

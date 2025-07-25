@@ -16,16 +16,28 @@ pub struct TuiApp {
     pub current_tab: TabState,
     pub selected_menu_item: usize,
     pub last_tick: Instant,
+    // Persistent list states for each tab to maintain selection
+    pub dashboard_list_state: ratatui::widgets::ListState,
+    pub documents_list_state: ratatui::widgets::ListState,
+    pub audit_list_state: ratatui::widgets::ListState,
+    pub reports_list_state: ratatui::widgets::ListState,
 }
 
 impl TuiApp {
     /// Create new TUI application
     pub fn new() -> Self {
+        let mut dashboard_state = ratatui::widgets::ListState::default();
+        dashboard_state.select(Some(0));
+        
         Self {
             should_quit: false,
             current_tab: TabState::Dashboard,
             selected_menu_item: 0,
             last_tick: Instant::now(),
+            dashboard_list_state: dashboard_state,
+            documents_list_state: ratatui::widgets::ListState::default(),
+            audit_list_state: ratatui::widgets::ListState::default(),
+            reports_list_state: ratatui::widgets::ListState::default(),
         }
     }
 
@@ -57,6 +69,7 @@ impl TuiApp {
             TabState::Settings => TabState::Dashboard,
         };
         self.selected_menu_item = 0;
+        self.update_current_list_state();
     }
 
     /// Move to previous tab
@@ -69,6 +82,7 @@ impl TuiApp {
             TabState::Settings => TabState::Reports,
         };
         self.selected_menu_item = 0;
+        self.update_current_list_state();
     }
 
     /// Move to previous menu item
@@ -76,6 +90,7 @@ impl TuiApp {
         if self.selected_menu_item > 0 {
             self.selected_menu_item -= 1;
         }
+        self.update_current_list_state();
     }
 
     /// Move to next menu item
@@ -83,6 +98,30 @@ impl TuiApp {
         let max_items = self.menu_item_count();
         if self.selected_menu_item + 1 < max_items {
             self.selected_menu_item += 1;
+        }
+        self.update_current_list_state();
+    }
+
+    /// Update the list state for the current tab
+    fn update_current_list_state(&mut self) {
+        let state = match self.current_tab {
+            TabState::Dashboard => &mut self.dashboard_list_state,
+            TabState::Documents => &mut self.documents_list_state,
+            TabState::AuditTrail => &mut self.audit_list_state,
+            TabState::Reports => &mut self.reports_list_state,
+            TabState::Settings => return, // Settings doesn't use a list
+        };
+        state.select(Some(self.selected_menu_item));
+    }
+
+    /// Get the number of menu items for the current tab
+    fn menu_item_count(&self) -> usize {
+        match self.current_tab {
+            TabState::Dashboard => 5, // Status items count
+            TabState::Documents => 4, // Document items count
+            TabState::AuditTrail => 4, // Audit items count
+            TabState::Reports => 4, // Report items count
+            TabState::Settings => 0, // No list items
         }
     }
 
@@ -198,7 +237,7 @@ impl TuiApp {
             .style(Style::default().fg(Color::White))
             .highlight_style(Style::default().add_modifier(Modifier::BOLD));
 
-        f.render_stateful_widget(document_list, area, &mut self.get_list_state());
+        f.render_stateful_widget(document_list, area, &mut self.documents_list_state);
     }
 
     /// Render audit trail tab
@@ -215,7 +254,7 @@ impl TuiApp {
             .style(Style::default().fg(Color::White))
             .highlight_style(Style::default().add_modifier(Modifier::BOLD));
 
-        f.render_stateful_widget(audit_list, area, &mut self.get_list_state());
+        f.render_stateful_widget(audit_list, area, &mut self.audit_list_state);
     }
 
     /// Render reports tab
@@ -232,7 +271,7 @@ impl TuiApp {
             .style(Style::default().fg(Color::White))
             .highlight_style(Style::default().add_modifier(Modifier::BOLD));
 
-        f.render_stateful_widget(report_list, area, &mut self.get_list_state());
+        f.render_stateful_widget(report_list, area, &mut self.reports_list_state);
     }
 
     /// Render settings tab
@@ -265,11 +304,15 @@ impl TuiApp {
         f.render_widget(settings_paragraph, area);
     }
 
-    /// Get list state for highlighting
-    fn get_list_state(&self) -> ratatui::widgets::ListState {
-        let mut state = ratatui::widgets::ListState::default();
-        state.select(Some(self.selected_menu_item));
-        state
+    /// Get mutable reference to the current tab's list state
+    fn get_current_list_state(&mut self) -> Option<&mut ratatui::widgets::ListState> {
+        match self.current_tab {
+            TabState::Dashboard => Some(&mut self.dashboard_list_state),
+            TabState::Documents => Some(&mut self.documents_list_state),
+            TabState::AuditTrail => Some(&mut self.audit_list_state),
+            TabState::Reports => Some(&mut self.reports_list_state),
+            TabState::Settings => None, // Settings doesn't use a list
+        }
     }
 }
 

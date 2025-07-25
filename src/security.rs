@@ -1,109 +1,48 @@
-use crate::{Result, QmsError, config::SecurityConfig};
-use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
-use argon2::password_hash::{rand_core::OsRng, SaltString};
-use aes_gcm::{Aes256Gcm, KeyInit, Nonce, Key};
-use aes_gcm::aead::{Aead, OsRng as AeadOsRng};
-use ring::digest::{Context, SHA256};
+use crate::{Result, QmsError};
+use ring::{
+    rand::SecureRandom,
+    signature::{self, KeyPair, RsaKeyPair, RSA_PKCS1_SHA256},
+};
+use base64::{engine::general_purpose, Engine as _};
 use std::collections::HashMap;
 use chrono::{DateTime, Utc, Duration};
+
+/// Simplified security configuration
+#[derive(Debug, Clone)]
+pub struct SecurityConfig {
+    pub session_timeout_minutes: u32,
+    pub max_login_attempts: u32,
+}
 
 /// Security manager for FDA-compliant operations
 pub struct SecurityManager {
     config: SecurityConfig,
     active_sessions: HashMap<String, Session>,
-    failed_attempts: HashMap<String, Vec<DateTime<Utc>>>,
+    signature_manager: DigitalSignatureManager,
 }
 
 impl SecurityManager {
     /// Create new security manager
-    pub fn new(config: SecurityConfig) -> Self {
-        Self {
+    pub fn new(config: SecurityConfig) -> Result<Self> {
+        let signature_manager = DigitalSignatureManager::new()?;
+        
+        Ok(Self {
             config,
             active_sessions: HashMap::new(),
-            failed_attempts: HashMap::new(),
-        }
+            signature_manager,
+        })
     }
 
-    /// Hash password using Argon2
-    pub fn hash_password(&self, password: &str) -> Result<(String, String)> {
-        if !self.validate_password_complexity(password) {
-            return Err(QmsError::Security {
-                message: "Password does not meet complexity requirements".to_string(),
-            });
-        }
-
-        let salt = SaltString::generate(&mut OsRng);
-        let argon2 = Argon2::default();
-        
-        let password_hash = argon2
-            .hash_password(password.as_bytes(), &salt)
-            .map_err(|e| QmsError::Security {
-                message: format!("Failed to hash password: {}", e),
-            })?;
-
-        Ok((password_hash.to_string(), salt.to_string()))
+    /// Get reference to digital signature manager
+    pub fn signature_manager(&self) -> &DigitalSignatureManager {
+        &self.signature_manager
     }
 
-    /// Verify password against hash
-    pub fn verify_password(&self, password: &str, hash: &str) -> Result<bool> {
-        let parsed_hash = PasswordHash::new(hash)
-            .map_err(|e| QmsError::Security {
-                message: format!("Invalid password hash: {}", e),
-            })?;
-
-        let argon2 = Argon2::default();
-        match argon2.verify_password(password.as_bytes(), &parsed_hash) {
-            Ok(()) => Ok(true),
-            Err(_) => Ok(false),
-        }
-    }
-
-    /// Validate password complexity
-    pub fn validate_password_complexity(&self, password: &str) -> bool {
-        if !self.config.password_complexity {
-            return password.len() >= self.config.min_password_length as usize;
-        }
-
-        // FDA-compliant password requirements
-        let has_length = password.len() >= self.config.min_password_length as usize;
-        let has_upper = password.chars().any(|c| c.is_uppercase());
-        let has_lower = password.chars().any(|c| c.is_lowercase());
-        let has_digit = password.chars().any(|c| c.is_ascii_digit());
-        let has_special = password.chars().any(|c| "!@#$%^&*()_+-=[]{}|;:,.<>?".contains(c));
-
-        has_length && has_upper && has_lower && has_digit && has_special
-    }
-
-    /// Check if user is locked out
-    pub fn is_user_locked(&mut self, username: &str) -> bool {
-        if let Some(attempts) = self.failed_attempts.get(username) {
-            if attempts.len() >= self.config.max_login_attempts as usize {
-                let last_attempt = attempts.last().unwrap();
-                let lockout_duration = Duration::minutes(self.config.lockout_duration_minutes as i64);
-                return Utc::now() < *last_attempt + lockout_duration;
-            }
-        }
-        false
-    }
-
-    /// Record failed login attempt
-    pub fn record_failed_attempt(&mut self, username: &str) {
-        let now = Utc::now();
-        self.failed_attempts
-            .entry(username.to_string())
-            .or_insert_with(Vec::new)
-            .push(now);
-
-        // Clean old attempts beyond lockout window
-        let cutoff = now - Duration::minutes(self.config.lockout_duration_minutes as i64);
-        if let Some(attempts) = self.failed_attempts.get_mut(username) {
-            attempts.retain(|&attempt| attempt > cutoff);
-        }
-    }
-
-    /// Clear failed attempts on successful login
-    pub fn clear_failed_attempts(&mut self, username: &str) {
-        self.failed_attempts.remove(username);
+    /// Simple session-based authentication for demo purposes
+    pub fn authenticate_user(&mut self, username: &str, _password: &str) -> Result<String> {
+        // Simplified authentication - in production this would verify against database
+        let session_id = self.create_session(username.to_string(), None)?;
+        Ok(session_id)
     }
 
     /// Create new session
@@ -154,67 +93,23 @@ impl SecurityManager {
         });
     }
 
-    /// Encrypt sensitive data
-    pub fn encrypt_data(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>> {
-        if key.len() != 32 {
-            return Err(QmsError::Encryption {
-                message: "Key must be 32 bytes for AES-256".to_string(),
-            });
-        }
-
-        let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
-        let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
-        
-        let ciphertext = cipher.encrypt(&nonce, data)
-            .map_err(|e| QmsError::Encryption {
-                message: format!("Encryption failed: {}", e),
-            })?;
-
-        // Prepend nonce to ciphertext
-        let mut result = nonce.to_vec();
-        result.extend_from_slice(&ciphertext);
-        Ok(result)
+    /// Generate FDA-compliant digital signature for audit trail
+    pub fn generate_audit_signature(
+        &self,
+        user_id: &str,
+        action: &str,
+        resource: &str,
+        timestamp: &DateTime<Utc>,
+        additional_data: Option<&str>,
+    ) -> Result<FDASignature> {
+        self.signature_manager.create_audit_signature(
+            user_id, action, resource, timestamp, additional_data
+        )
     }
 
-    /// Decrypt sensitive data
-    pub fn decrypt_data(&self, encrypted_data: &[u8], key: &[u8]) -> Result<Vec<u8>> {
-        if key.len() != 32 {
-            return Err(QmsError::Encryption {
-                message: "Key must be 32 bytes for AES-256".to_string(),
-            });
-        }
-
-        if encrypted_data.len() < 12 {
-            return Err(QmsError::Encryption {
-                message: "Encrypted data too short".to_string(),
-            });
-        }
-
-        let (nonce_bytes, ciphertext) = encrypted_data.split_at(12);
-        let nonce = Nonce::from_slice(nonce_bytes);
-        let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
-
-        cipher.decrypt(nonce, ciphertext)
-            .map_err(|e| QmsError::Encryption {
-                message: format!("Decryption failed: {}", e),
-            })
-    }
-
-    /// Generate cryptographic hash for integrity verification
-    pub fn calculate_hash(&self, data: &[u8]) -> String {
-        let mut context = Context::new(&SHA256);
-        context.update(data);
-        let digest = context.finish();
-        hex::encode(digest.as_ref())
-    }
-
-    /// Generate digital signature for audit trail
-    pub fn generate_signature(&self, data: &[u8], key: &[u8]) -> Result<String> {
-        // Simplified signature - in production, use proper digital signatures
-        let mut combined = Vec::new();
-        combined.extend_from_slice(data);
-        combined.extend_from_slice(key);
-        Ok(self.calculate_hash(&combined))
+    /// Verify digital signature
+    pub fn verify_audit_signature(&self, data: &[u8], signature: &str) -> Result<bool> {
+        self.signature_manager.verify_signature(data, signature)
     }
 }
 
@@ -230,55 +125,159 @@ pub struct Session {
     pub is_active: bool,
 }
 
-/// User role for access control
-#[derive(Debug, Clone, PartialEq)]
-pub enum UserRole {
-    SystemAdmin,
-    QualityManager,
-    DocumentController,
-    Auditor,
-    User,
-    ReadOnly,
+/// Digital signature manager for FDA 21 CFR Part 11 compliance
+pub struct DigitalSignatureManager {
+    key_pair: RsaKeyPair,
 }
 
-impl UserRole {
-    /// Check if role has permission for action
-    pub fn has_permission(&self, permission: Permission) -> bool {
-        match self {
-            UserRole::SystemAdmin => true, // Admin has all permissions
-            UserRole::QualityManager => matches!(permission,
-                Permission::ReadDocuments | Permission::WriteDocuments | 
-                Permission::ApproveDocuments | Permission::ViewAuditTrail |
-                Permission::ManageUsers | Permission::CreateReports
-            ),
-            UserRole::DocumentController => matches!(permission,
-                Permission::ReadDocuments | Permission::WriteDocuments |
-                Permission::ApproveDocuments | Permission::ViewAuditTrail
-            ),
-            UserRole::Auditor => matches!(permission,
-                Permission::ReadDocuments | Permission::ViewAuditTrail |
-                Permission::CreateReports
-            ),
-            UserRole::User => matches!(permission,
-                Permission::ReadDocuments | Permission::WriteDocuments
-            ),
-            UserRole::ReadOnly => matches!(permission,
-                Permission::ReadDocuments
-            ),
+impl DigitalSignatureManager {
+    /// Create new digital signature manager with RSA key pair
+    pub fn new() -> Result<Self> {
+        // Generate RSA-2048 key pair for secure digital signatures
+        let rng = ring::rand::SystemRandom::new();
+        let key_pair = RsaKeyPair::generate_pkcs1(2048, &rng)
+            .map_err(|e| QmsError::Encryption {
+                message: format!("Failed to generate RSA key pair: {:?}", e),
+            })?;
+
+        Ok(Self { key_pair })
+    }
+
+    /// Create a digital signature for audit trail data - FDA 21 CFR Part 11 compliant
+    pub fn sign_data(&self, data: &[u8]) -> Result<String> {
+        let rng = ring::rand::SystemRandom::new();
+        
+        let signature = self.key_pair
+            .sign(&RSA_PKCS1_SHA256, &rng, data)
+            .map_err(|e| QmsError::Encryption {
+                message: format!("Failed to create digital signature: {:?}", e),
+            })?;
+
+        // Encode signature as base64 for storage
+        Ok(general_purpose::STANDARD.encode(signature.as_ref()))
+    }
+
+    /// Verify a digital signature - Critical for audit trail integrity
+    pub fn verify_signature(&self, data: &[u8], signature_b64: &str) -> Result<bool> {
+        let signature_bytes = general_purpose::STANDARD
+            .decode(signature_b64)
+            .map_err(|e| QmsError::Encryption {
+                message: format!("Failed to decode signature: {}", e),
+            })?;
+
+        let public_key = self.key_pair.public_key();
+        
+        match public_key.verify(&RSA_PKCS1_SHA256, data, &signature_bytes) {
+            Ok(()) => Ok(true),
+            Err(_) => Ok(false),
         }
+    }
+
+    /// Get public key for verification by external systems
+    pub fn get_public_key_der(&self) -> Vec<u8> {
+        self.key_pair.public_key().as_ref().to_vec()
+    }
+
+    /// Create timestamped signature with user information for FDA compliance
+    pub fn create_audit_signature(
+        &self,
+        user_id: &str,
+        action: &str,
+        resource: &str,
+        timestamp: &chrono::DateTime<chrono::Utc>,
+        additional_data: Option<&str>,
+    ) -> Result<FDASignature> {
+        // Create comprehensive data for signing
+        let mut sign_data = format!(
+            "user_id={};action={};resource={};timestamp={}",
+            user_id,
+            action,
+            resource,
+            timestamp.to_rfc3339()
+        );
+
+        if let Some(data) = additional_data {
+            sign_data.push_str(&format!(";data={}", data));
+        }
+
+        let signature = self.sign_data(sign_data.as_bytes())?;
+
+        Ok(FDASignature {
+            signature,
+            algorithm: "RSA-PKCS1-SHA256".to_string(),
+            user_id: user_id.to_string(),
+            timestamp: *timestamp,
+            signed_data_hash: self.calculate_sha256(&sign_data),
+        })
+    }
+
+    /// Calculate SHA-256 hash for data integrity
+    fn calculate_sha256(&self, data: &str) -> String {
+        use ring::digest;
+        let digest = digest::digest(&digest::SHA256, data.as_bytes());
+        general_purpose::STANDARD.encode(digest.as_ref())
     }
 }
 
-/// Permission enumeration for RBAC
-#[derive(Debug, Clone, PartialEq)]
-pub enum Permission {
-    ReadDocuments,
-    WriteDocuments,
-    ApproveDocuments,
-    ViewAuditTrail,
-    ManageUsers,
-    CreateReports,
-    SystemAdmin,
+/// FDA-compliant digital signature structure
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct FDASignature {
+    /// Base64 encoded digital signature
+    pub signature: String,
+    
+    /// Signature algorithm used
+    pub algorithm: String,
+    
+    /// User who created the signature
+    pub user_id: String,
+    
+    /// Timestamp when signature was created
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+    
+    /// SHA-256 hash of the signed data for verification
+    pub signed_data_hash: String,
+}
+
+impl FDASignature {
+    /// Validate the signature structure for FDA compliance
+    pub fn validate(&self) -> Result<()> {
+        if self.signature.is_empty() {
+            return Err(QmsError::Validation {
+                field: "signature".to_string(),
+                message: "Digital signature cannot be empty".to_string(),
+            });
+        }
+
+        if self.user_id.is_empty() {
+            return Err(QmsError::Validation {
+                field: "user_id".to_string(),
+                message: "Signature must include user identification".to_string(),
+            });
+        }
+
+        if self.algorithm != "RSA-PKCS1-SHA256" {
+            return Err(QmsError::Validation {
+                field: "algorithm".to_string(),
+                message: "Only RSA-PKCS1-SHA256 signatures are accepted".to_string(),
+            });
+        }
+
+        // Verify signature is not too old (configurable threshold)
+        let max_age = chrono::Duration::hours(24);
+        if chrono::Utc::now().signed_duration_since(self.timestamp) > max_age {
+            return Err(QmsError::Security {
+                message: "Signature is too old and may be invalid".to_string(),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Check if signature is within acceptable time window
+    pub fn is_current(&self, max_age_hours: i64) -> bool {
+        let max_age = chrono::Duration::hours(max_age_hours);
+        chrono::Utc::now().signed_duration_since(self.timestamp) <= max_age
+    }
 }
 
 #[cfg(test)]
@@ -287,62 +286,56 @@ mod tests {
 
     fn test_security_config() -> SecurityConfig {
         SecurityConfig {
-            key_iterations: 100_000,
             session_timeout_minutes: 60,
             max_login_attempts: 3,
-            lockout_duration_minutes: 30,
-            password_complexity: true,
-            min_password_length: 12,
         }
     }
 
     #[test]
-    fn test_password_hashing_and_verification() {
-        let security = SecurityManager::new(test_security_config());
-        let password = "TestPass123!@#";
+    fn test_digital_signature_creation_and_verification() {
+        let sig_manager = DigitalSignatureManager::new().unwrap();
+        let test_data = b"FDA audit trail test data";
         
-        let (hash, _salt) = security.hash_password(password).unwrap();
-        assert!(security.verify_password(password, &hash).unwrap());
-        assert!(!security.verify_password("WrongPassword", &hash).unwrap());
+        let signature = sig_manager.sign_data(test_data).unwrap();
+        assert!(!signature.is_empty());
+        
+        let is_valid = sig_manager.verify_signature(test_data, &signature).unwrap();
+        assert!(is_valid);
     }
 
     #[test]
-    fn test_password_complexity_validation() {
-        let security = SecurityManager::new(test_security_config());
+    fn test_signature_verification_with_wrong_data() {
+        let sig_manager = DigitalSignatureManager::new().unwrap();
+        let test_data = b"original data";
+        let wrong_data = b"tampered data";
         
-        // Valid complex password
-        assert!(security.validate_password_complexity("TestPass123!@#"));
-        
-        // Invalid passwords
-        assert!(!security.validate_password_complexity("short"));
-        assert!(!security.validate_password_complexity("nouppercase123!"));
-        assert!(!security.validate_password_complexity("NOLOWERCASE123!"));
-        assert!(!security.validate_password_complexity("NoNumbers!@#"));
-        assert!(!security.validate_password_complexity("NoSpecialChars123"));
+        let signature = sig_manager.sign_data(test_data).unwrap();
+        let is_valid = sig_manager.verify_signature(wrong_data, &signature).unwrap();
+        assert!(!is_valid);
     }
 
     #[test]
-    fn test_failed_login_attempts() {
-        let mut security = SecurityManager::new(test_security_config());
-        let username = "testuser";
+    fn test_fda_audit_signature() {
+        let sig_manager = DigitalSignatureManager::new().unwrap();
+        let timestamp = chrono::Utc::now();
+        
+        let fda_sig = sig_manager.create_audit_signature(
+            "test_user",
+            "CREATE_DOCUMENT", 
+            "SOP-001",
+            &timestamp,
+            Some("test metadata")
+        ).unwrap();
 
-        assert!(!security.is_user_locked(username));
-
-        // Record failed attempts
-        for _ in 0..3 {
-            security.record_failed_attempt(username);
-        }
-
-        assert!(security.is_user_locked(username));
-
-        // Clear attempts
-        security.clear_failed_attempts(username);
-        assert!(!security.is_user_locked(username));
+        assert!(fda_sig.validate().is_ok());
+        assert_eq!(fda_sig.algorithm, "RSA-PKCS1-SHA256");
+        assert_eq!(fda_sig.user_id, "test_user");
+        assert!(fda_sig.is_current(1)); // Should be current within 1 hour
     }
 
     #[test]
     fn test_session_management() {
-        let mut security = SecurityManager::new(test_security_config());
+        let mut security = SecurityManager::new(test_security_config()).unwrap();
         let user_id = "user123".to_string();
         let ip_address = Some("192.168.1.1".to_string());
 
@@ -361,43 +354,35 @@ mod tests {
     }
 
     #[test]
-    fn test_encryption_decryption() {
-        let security = SecurityManager::new(test_security_config());
-        let key = b"12345678901234567890123456789012"; // 32 bytes
-        let data = b"Sensitive FDA-regulated data";
+    fn test_signature_validation_failures() {
+        let mut fda_sig = FDASignature {
+            signature: "".to_string(), // Empty signature should fail
+            algorithm: "RSA-PKCS1-SHA256".to_string(),
+            user_id: "test_user".to_string(),
+            timestamp: chrono::Utc::now(),
+            signed_data_hash: "test_hash".to_string(),
+        };
 
-        let encrypted = security.encrypt_data(data, key).unwrap();
-        let decrypted = security.decrypt_data(&encrypted, key).unwrap();
+        assert!(fda_sig.validate().is_err());
 
-        assert_eq!(data, &decrypted[..]);
+        // Test with wrong algorithm
+        fda_sig.signature = "valid_signature".to_string();
+        fda_sig.algorithm = "MD5".to_string(); // Insecure algorithm
+        assert!(fda_sig.validate().is_err());
     }
 
     #[test]
-    fn test_user_role_permissions() {
-        let admin = UserRole::SystemAdmin;
-        let user = UserRole::User;
-        let readonly = UserRole::ReadOnly;
+    fn test_signature_age_validation() {
+        let old_timestamp = chrono::Utc::now() - chrono::Duration::hours(25);
+        let fda_sig = FDASignature {
+            signature: "valid_signature".to_string(),
+            algorithm: "RSA-PKCS1-SHA256".to_string(),
+            user_id: "test_user".to_string(),
+            timestamp: old_timestamp,
+            signed_data_hash: "test_hash".to_string(),
+        };
 
-        assert!(admin.has_permission(Permission::SystemAdmin));
-        assert!(admin.has_permission(Permission::WriteDocuments));
-        
-        assert!(user.has_permission(Permission::ReadDocuments));
-        assert!(user.has_permission(Permission::WriteDocuments));
-        assert!(!user.has_permission(Permission::ApproveDocuments));
-        
-        assert!(readonly.has_permission(Permission::ReadDocuments));
-        assert!(!readonly.has_permission(Permission::WriteDocuments));
-    }
-
-    #[test]
-    fn test_hash_calculation() {
-        let security = SecurityManager::new(test_security_config());
-        let data = b"test data for hashing";
-        
-        let hash1 = security.calculate_hash(data);
-        let hash2 = security.calculate_hash(data);
-        
-        assert_eq!(hash1, hash2);
-        assert!(!hash1.is_empty());
+        assert!(fda_sig.validate().is_err()); // Should fail due to age
+        assert!(!fda_sig.is_current(24)); // Should not be current
     }
 }

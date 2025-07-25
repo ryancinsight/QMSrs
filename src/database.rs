@@ -1,23 +1,65 @@
-use crate::{Result, QmsError, config::DatabaseConfig};
+use crate::{Result, QmsError};
 use rusqlite::{Connection, params};
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
 use std::path::Path;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 
-/// Database manager for FDA-compliant QMS
+/// Simplified audit log entry for database operations
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuditLogEntry {
+    pub timestamp: DateTime<Utc>,
+    pub user_id: String,
+    pub action: String,
+    pub resource: String,
+    pub outcome: AuditOutcome,
+    pub ip_address: Option<String>,
+    pub session_id: String,
+    pub metadata: serde_json::Value,
+    pub compliance_version: String,
+    pub signature_hash: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+pub enum AuditOutcome {
+    Success,
+    Failure,
+    Warning,
+}
+
+impl AuditOutcome {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            AuditOutcome::Success => "SUCCESS",
+            AuditOutcome::Failure => "FAILURE",
+            AuditOutcome::Warning => "WARNING",
+        }
+    }
+}
+
+/// Database manager for FDA-compliant QMS with connection pooling
+#[derive(Clone)]
 pub struct Database {
-    connection: Connection,
-    config: DatabaseConfig,
+    pool: Pool<SqliteConnectionManager>,
+}
+
+/// Database configuration
+#[derive(Debug, Clone)]
+pub struct DatabaseConfig {
+    pub url: String,
+    pub max_connections: u32,
+    pub wal_mode: bool,
+    pub backup_interval_hours: u32,
+    pub backup_retention_days: u32,
 }
 
 impl Database {
-    /// Create new database connection
+    /// Create new database connection with connection pool
     pub fn new(config: DatabaseConfig) -> Result<Self> {
-        let connection = if config.url == ":memory:" {
-            Connection::open_in_memory()?
-        } else {
-            // Ensure database directory exists
+        // Ensure database directory exists for file-based databases
+        if config.url != ":memory:" {
             if let Some(parent) = Path::new(&config.url).parent() {
                 std::fs::create_dir_all(parent)
                     .map_err(|e| QmsError::FileSystem {
@@ -25,29 +67,46 @@ impl Database {
                         message: format!("Failed to create database directory: {}", e),
                     })?;
             }
-            Connection::open(&config.url)?
-        };
-
-        // Enable WAL mode for better concurrency and crash recovery
-        if config.wal_mode {
-            connection.execute("PRAGMA journal_mode=WAL", [])?;
         }
 
-        // Set other pragma settings for FDA compliance
-        connection.execute("PRAGMA foreign_keys=ON", [])?;
-        connection.execute("PRAGMA synchronous=FULL", [])?;
-        connection.execute("PRAGMA secure_delete=ON", [])?;
+        // Create connection manager
+        let manager = SqliteConnectionManager::file(&config.url)
+            .with_init(move |conn| {
+                // Configure pragma settings for FDA compliance
+                if config.wal_mode {
+                    conn.execute_batch("PRAGMA journal_mode=WAL")?;
+                }
+                conn.execute_batch("PRAGMA foreign_keys=ON")?;
+                conn.execute_batch("PRAGMA synchronous=FULL")?;
+                conn.execute_batch("PRAGMA secure_delete=ON")?;
+                Ok(())
+            });
 
-        let mut db = Self { connection, config };
+        // Create connection pool
+        let pool = Pool::builder()
+            .max_size(config.max_connections)
+            .build(manager)
+            .map_err(|e| QmsError::Database {
+                message: format!("Failed to create connection pool: {}", e),
+            })?;
+
+        let db = Self { pool };
+        
+        // Initialize schema using a connection from the pool
         db.initialize_schema()?;
         
         Ok(db)
     }
 
     /// Initialize database schema for FDA compliance
-    fn initialize_schema(&mut self) -> Result<()> {
+    fn initialize_schema(&self) -> Result<()> {
+        let conn = self.pool.get()
+            .map_err(|e| QmsError::Database {
+                message: format!("Failed to get database connection: {}", e),
+            })?;
+
         // Create audit trail table (critical for FDA compliance)
-        self.connection.execute(
+        conn.execute(
             "CREATE TABLE IF NOT EXISTS audit_trail (
                 id TEXT PRIMARY KEY,
                 timestamp TEXT NOT NULL,
@@ -66,7 +125,7 @@ impl Database {
         )?;
 
         // Create users table with role-based access control
-        self.connection.execute(
+        conn.execute(
             "CREATE TABLE IF NOT EXISTS users (
                 id TEXT PRIMARY KEY,
                 username TEXT UNIQUE NOT NULL,
@@ -85,7 +144,7 @@ impl Database {
         )?;
 
         // Create documents table for document control system
-        self.connection.execute(
+        conn.execute(
             "CREATE TABLE IF NOT EXISTS documents (
                 id TEXT PRIMARY KEY,
                 document_number TEXT UNIQUE NOT NULL,
@@ -109,7 +168,7 @@ impl Database {
         )?;
 
         // Create document versions table for version control
-        self.connection.execute(
+        conn.execute(
             "CREATE TABLE IF NOT EXISTS document_versions (
                 id TEXT PRIMARY KEY,
                 document_id TEXT NOT NULL,
@@ -127,7 +186,7 @@ impl Database {
         )?;
 
         // Create sessions table for session management
-        self.connection.execute(
+        conn.execute(
             "CREATE TABLE IF NOT EXISTS sessions (
                 id TEXT PRIMARY KEY,
                 user_id TEXT NOT NULL,
@@ -143,17 +202,17 @@ impl Database {
         )?;
 
         // Create indexes for performance
-        self.connection.execute(
+        conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_audit_trail_timestamp ON audit_trail(timestamp)",
             [],
         )?;
         
-        self.connection.execute(
+        conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_audit_trail_user_id ON audit_trail(user_id)",
             [],
         )?;
         
-        self.connection.execute(
+        conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status)",
             [],
         )?;
@@ -162,10 +221,15 @@ impl Database {
     }
 
     /// Insert audit trail entry
-    pub fn insert_audit_entry(&mut self, entry: &crate::logging::AuditLogEntry) -> Result<()> {
+    pub fn insert_audit_entry(&self, entry: &AuditLogEntry) -> Result<()> {
+        let conn = self.pool.get()
+            .map_err(|e| QmsError::Database {
+                message: format!("Failed to get database connection: {}", e),
+            })?;
+
         let id = Uuid::new_v4().to_string();
         
-        self.connection.execute(
+        conn.execute(
             "INSERT INTO audit_trail (
                 id, timestamp, user_id, action, resource, outcome,
                 ip_address, session_id, metadata, compliance_version, signature_hash
@@ -195,6 +259,11 @@ impl Database {
         offset: i64,
         user_id: Option<&str>,
     ) -> Result<Vec<AuditTrailEntry>> {
+        let conn = self.pool.get()
+            .map_err(|e| QmsError::Database {
+                message: format!("Failed to get database connection: {}", e),
+            })?;
+
         let mut query = "SELECT * FROM audit_trail".to_string();
         let mut params: Vec<&dyn rusqlite::ToSql> = Vec::new();
 
@@ -207,7 +276,7 @@ impl Database {
         params.push(&limit);
         params.push(&offset);
 
-        let mut stmt = self.connection.prepare(&query)?;
+        let mut stmt = conn.prepare(&query)?;
         let audit_iter = stmt.query_map(params.as_slice(), |row| {
             Ok(AuditTrailEntry {
                 id: row.get(0)?,
@@ -235,7 +304,12 @@ impl Database {
 
     /// Verify audit trail integrity
     pub fn verify_audit_integrity(&self) -> Result<AuditIntegrityReport> {
-        let mut stmt = self.connection.prepare(
+        let conn = self.pool.get()
+            .map_err(|e| QmsError::Database {
+                message: format!("Failed to get database connection: {}", e),
+            })?;
+
+        let mut stmt = conn.prepare(
             "SELECT COUNT(*) as total_entries,
                     MIN(timestamp) as earliest_entry,
                     MAX(timestamp) as latest_entry
@@ -280,25 +354,103 @@ impl Database {
         }
     }
 
-    /// Check for gaps in audit trail
+    /// Check for gaps in audit trail - Critical for FDA compliance
     fn check_audit_gaps(&self) -> Result<Vec<String>> {
-        // This is a simplified gap detection - in production you'd want more sophisticated checks
-        let mut stmt = self.connection.prepare(
-            "SELECT timestamp FROM audit_trail ORDER BY timestamp"
+        let conn = self.pool.get()
+            .map_err(|e| QmsError::Database {
+                message: format!("Failed to get database connection: {}", e),
+            })?;
+
+        let mut gaps = Vec::new();
+
+        // Check for temporal gaps (periods longer than expected without entries)
+        let mut stmt = conn.prepare(
+            "SELECT timestamp, 
+                    LAG(timestamp) OVER (ORDER BY timestamp) as prev_timestamp
+             FROM audit_trail 
+             ORDER BY timestamp"
         )?;
         
-        let timestamps: Result<Vec<String>> = stmt.query_map([], |row| {
-            row.get(0)
-        })?.collect();
+        let gap_threshold_hours = 24; // Configurable threshold for suspicious gaps
+        
+        let rows = stmt.query_map([], |row| {
+            let current: String = row.get(0)?;
+            let previous: Option<String> = row.get(1)?;
+            Ok((current, previous))
+        })?;
 
-        // For now, just return empty - real implementation would check for suspicious gaps
-        Ok(Vec::new())
+        for row in rows {
+            let (current_str, prev_str) = row?;
+            
+            if let Some(prev_str) = prev_str {
+                if let (Ok(current), Ok(prev)) = (
+                    DateTime::parse_from_rfc3339(&current_str),
+                    DateTime::parse_from_rfc3339(&prev_str)
+                ) {
+                    let gap_duration = current.signed_duration_since(prev);
+                    
+                    if gap_duration.num_hours() > gap_threshold_hours {
+                        gaps.push(format!(
+                            "Gap of {} hours between {} and {}",
+                            gap_duration.num_hours(),
+                            prev_str,
+                            current_str
+                        ));
+                    }
+                }
+            }
+        }
+
+        // Check for missing sequence numbers or user sessions without proper start/end
+        let mut stmt = conn.prepare(
+            "SELECT user_id, session_id, MIN(timestamp) as start_time, MAX(timestamp) as end_time,
+                    COUNT(*) as entry_count
+             FROM audit_trail 
+             GROUP BY user_id, session_id
+             HAVING entry_count < 2"
+        )?;
+
+        let incomplete_sessions = stmt.query_map([], |row| {
+            let user_id: String = row.get(0)?;
+            let session_id: String = row.get(1)?;
+            let start_time: String = row.get(2)?;
+            Ok(format!("Incomplete session for user {} (session {}): started {}", 
+                      user_id, session_id, start_time))
+        })?;
+
+        for session in incomplete_sessions {
+            gaps.push(session?);
+        }
+
+        // Check for entries with missing required fields
+        let mut stmt = conn.prepare(
+            "SELECT id, timestamp FROM audit_trail 
+             WHERE user_id IS NULL OR action IS NULL OR resource IS NULL 
+                OR outcome IS NULL OR session_id IS NULL"
+        )?;
+
+        let invalid_entries = stmt.query_map([], |row| {
+            let id: String = row.get(0)?;
+            let timestamp: String = row.get(1)?;
+            Ok(format!("Invalid audit entry {} at {}: missing required fields", id, timestamp))
+        })?;
+
+        for entry in invalid_entries {
+            gaps.push(entry?);
+        }
+
+        Ok(gaps)
     }
 
     /// Create database backup
     pub fn create_backup(&self, backup_path: &str) -> Result<()> {
+        let conn = self.pool.get()
+            .map_err(|e| QmsError::Database {
+                message: format!("Failed to get database connection: {}", e),
+            })?;
+
         let backup_conn = Connection::open(backup_path)?;
-        let backup = rusqlite::backup::Backup::new(&self.connection, &backup_conn)?;
+        let backup = rusqlite::backup::Backup::new(&*conn, &backup_conn)?;
         backup.run_to_completion(5, std::time::Duration::from_millis(250), None)?;
         Ok(())
     }
