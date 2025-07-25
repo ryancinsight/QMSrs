@@ -94,7 +94,10 @@ impl AuditLogger {
             "SUCCESS" => AuditOutcome::Success,
             "FAILURE" => AuditOutcome::Failure,
             "WARNING" => AuditOutcome::Warning,
-            _ => AuditOutcome::Success,
+            other => return Err(QmsError::Validation {
+                field: "outcome".to_string(),
+                message: format!("Invalid audit outcome string: '{}'", other),
+            }),
         };
 
         let mut entry = AuditLogEntry::new(
