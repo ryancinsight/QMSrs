@@ -31,6 +31,7 @@ pub mod training; // Phase 3: Training records module
 pub mod training_repo; // Phase 3: Training records persistence layer
 pub mod supplier_repo; // Phase 3: Supplier management persistence
 pub mod supplier; // Phase 3: Supplier management domain
+pub mod pdf_report; // Phase 4: Compliance PDF reporting
 
 pub use error::{QmsError, Result};
 
