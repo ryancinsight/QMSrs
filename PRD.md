@@ -190,9 +190,9 @@ Each requirement broken into testable units with acceptance criteria
   - **S**: Single purpose: KPI reporting
   - **T**: Testable via simulated datasets
 
-### 2.7.5 Supplier Management & Qualification (IN PROGRESS)
+### 2.7.5 Supplier Management & Qualification (COMPLETED)
 
-- **REQ-SUP001**: Supplier Record Management (SCHEMA ✅)
+- **REQ-SUP001**: Supplier Record Management ✅ COMPLETED
   - **I**: Independent module; no CAPA dependency
   - **N**: Supplier types and risk categories configurable
   - **V**: Enables compliant supplier qualification evidence
@@ -207,6 +207,8 @@ Each requirement broken into testable units with acceptance criteria
   - **E**: 1 day for aggregation & display
   - **S**: Single purpose: KPI reporting
   - **T**: Testable via simulated datasets
+
+- **REQ-SUP003**: Supplier TUI Integration ✅ COMPLETED
 
 ### Acceptance Criteria – Supplier Management
 - **AC-SUP001**: System shall create, edit, qualify, and disqualify suppliers with full audit trail
