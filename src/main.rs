@@ -178,16 +178,22 @@ mod tests {
         app.move_down();
         println!("✓ 4. Audit trail tab navigation working");
         
-        // 5. Test tab switching to Reports
+        // 5. Test tab switching to CAPA
+        app.next_tab();
+        assert_eq!(app.current_tab, qmsrs::ui::TabState::Capa);
+        app.move_down();
+        println!("✓ 5. CAPA tab navigation working");
+        
+        // 6. Test tab switching to Reports
         app.next_tab();
         assert_eq!(app.current_tab, qmsrs::ui::TabState::Reports);
         app.move_down();
-        println!("✓ 5. Reports tab navigation working");
+        println!("✓ 6. Reports tab navigation working");
         
-        // 6. Test wrap-around navigation back to Dashboard
+        // 7. Test wrap-around navigation back to Dashboard
         app.next_tab();
         assert_eq!(app.current_tab, qmsrs::ui::TabState::Dashboard);
-        println!("✓ 6. Tab wrap-around navigation working");
+        println!("✓ 7. Tab wrap-around navigation working");
         
         // 7. Test error handling - ensure app remains stable
         for _ in 0..10 {
