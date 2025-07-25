@@ -210,3 +210,52 @@
 - **Performance**: <1s response time for all operations
 - **Compliance**: 100% FDA audit trail requirements met
 - **Usability**: User acceptance testing > 90% satisfaction
+
+## Phase 3: API & Reporting Integration (CURRENT DEVELOPMENT)
+
+### 3.1 RESTful API Service
+- [ ] **TASK-020**: Implement Axum-based API service
+  - **R**: Developer
+  - **A**: Tech Lead
+  - **C**: QA, Security
+  - **I**: Stakeholders
+  - **Dependencies**: TASK-016A, TASK-018
+  - **Tests**: API metrics endpoint returns correct JSON (FIRST)
+  - **Status**: 🔄 IN PROGRESS
+
+- [ ] **TASK-021**: Expose `/metrics` endpoint aggregating CAPA & Risk data
+  - **R**: Developer
+  - **A**: Tech Lead
+  - **C**: Compliance, UX
+  - **I**: External Integrators
+  - **Dependencies**: TASK-020
+  - **Tests**: Response schema validation, status 200
+  - **Status**: 🔄 IN PROGRESS
+
+### 3.2 Reporting Dashboard Enhancements
+- [ ] **TASK-022**: Update TUI Reports tab to fetch live data from API
+  - **R**: Developer
+  - **A**: Tech Lead
+  - **C**: UX, Compliance
+  - **I**: Users
+  - **Dependencies**: TASK-021
+  - **Tests**: TUI workflow shows refreshed metrics
+  - **Status**: ⏳ PENDING
+
+### 3.3 Security Extensions
+- [ ] **TASK-023**: Implement token-based API authentication
+  - **R**: Security Engineer
+  - **A**: Security Lead
+  - **C**: DevOps, Compliance
+  - **I**: Stakeholders
+  - **Dependencies**: TASK-020
+  - **Tests**: Positive & negative authentication scenarios
+  - **Status**: ⏳ PENDING
+
+## Phase Completion Criteria (updated)
+- [ ] All Phase 3 tasks completed with RACI sign-offs
+- [ ] 100% test coverage including API layer
+- [ ] Documentation updated and approved
+- [ ] External API security verified
+- [ ] Performance benchmarks met (<100ms per request)
+- [ ] Security assessment passed

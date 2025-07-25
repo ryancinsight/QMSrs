@@ -48,6 +48,10 @@ tracing-appender = "0.2"
 sha2 = "0.10"
 rand = "0.8"
 
+axum = { version = "0.6", features = ["json"] }
+hyper = { version = "0.14", features = ["full"] }
+tower = "0.4"
+
 [dev-dependencies]
 tempfile = "3.0"
 

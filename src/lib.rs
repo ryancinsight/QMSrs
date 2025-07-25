@@ -26,6 +26,7 @@ pub mod risk;
 pub mod security;
 pub mod ui;
 pub mod capa;  // TASK-017: CAPA workflow management
+pub mod api; // Phase 3: RESTful API integration
 
 pub use error::{QmsError, Result};
 
