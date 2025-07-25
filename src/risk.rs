@@ -257,22 +257,21 @@ impl RiskManagementService {
         risk_assessment: &mut RiskAssessment,
         reviewed_by: String,
     ) -> Result<()> {
-        // Validation: Must have control measures for unacceptable risks
-        if risk_assessment.acceptability == RiskAcceptability::Unacceptable 
-            && risk_assessment.control_measures.is_empty() {
-            return Err(QmsError::Validation {
-                field: "control_measures".to_string(),
-                message: "Unacceptable risks must have control measures before approval".to_string(),
-            });
-        }
-
-        // Validation: Control measures must be verified
-        for measure in &risk_assessment.control_measures {
-            if measure.verification_status != VerificationStatus::Verified {
+        // Validation: Control measures must exist and be verified for unacceptable risks
+        if risk_assessment.acceptability == RiskAcceptability::Unacceptable {
+            if risk_assessment.control_measures.is_empty() {
                 return Err(QmsError::Validation {
-                    field: "verification_status".to_string(),
-                    message: "All control measures must be verified before approval".to_string(),
+                    field: "control_measures".to_string(),
+                    message: "Unacceptable risks must have control measures before approval".to_string(),
                 });
+            }
+            for measure in &risk_assessment.control_measures {
+                if measure.verification_status != VerificationStatus::Verified {
+                    return Err(QmsError::Validation {
+                        field: "verification_status".to_string(),
+                        message: "All control measures must be verified before approval".to_string(),
+                    });
+                }
             }
         }
 
