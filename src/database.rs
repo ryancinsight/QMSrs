@@ -1,4 +1,4 @@
-use crate::{Result, QmsError};
+use crate::{Result, QmsError, logging::AuditLogEntry};
 use rusqlite::{Connection, params};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -6,38 +6,6 @@ use std::path::Path;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
-
-/// Simplified audit log entry for database operations
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AuditLogEntry {
-    pub timestamp: DateTime<Utc>,
-    pub user_id: String,
-    pub action: String,
-    pub resource: String,
-    pub outcome: AuditOutcome,
-    pub ip_address: Option<String>,
-    pub session_id: String,
-    pub metadata: serde_json::Value,
-    pub compliance_version: String,
-    pub signature_hash: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
-pub enum AuditOutcome {
-    Success,
-    Failure,
-    Warning,
-}
-
-impl AuditOutcome {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            AuditOutcome::Success => "SUCCESS",
-            AuditOutcome::Failure => "FAILURE",
-            AuditOutcome::Warning => "WARNING",
-        }
-    }
-}
 
 /// Database manager for FDA-compliant QMS with connection pooling
 #[derive(Clone)]
@@ -201,6 +169,58 @@ impl Database {
             [],
         )?;
 
+        // Create risk assessments table for ISO 14971 compliance
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS risk_assessments (
+                id TEXT PRIMARY KEY,
+                device_name TEXT NOT NULL,
+                hazard_description TEXT NOT NULL,
+                hazardous_situation TEXT NOT NULL,
+                foreseeable_sequence TEXT NOT NULL,
+                harm_description TEXT NOT NULL,
+                initial_severity INTEGER NOT NULL,
+                initial_probability INTEGER NOT NULL,
+                initial_risk_level INTEGER NOT NULL,
+                acceptability TEXT NOT NULL,
+                residual_severity INTEGER,
+                residual_probability INTEGER,
+                residual_risk_level INTEGER,
+                residual_acceptability TEXT,
+                created_by TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_by TEXT,
+                updated_at TEXT,
+                reviewed_by TEXT,
+                reviewed_at TEXT,
+                status TEXT NOT NULL DEFAULT 'Draft',
+                FOREIGN KEY (created_by) REFERENCES users(id),
+                FOREIGN KEY (updated_by) REFERENCES users(id),
+                FOREIGN KEY (reviewed_by) REFERENCES users(id)
+            )",
+            [],
+        )?;
+
+        // Create control measures table for risk mitigation
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS control_measures (
+                id TEXT PRIMARY KEY,
+                risk_assessment_id TEXT NOT NULL,
+                measure_type TEXT NOT NULL,
+                description TEXT NOT NULL,
+                implementation_details TEXT NOT NULL,
+                effectiveness_verification TEXT NOT NULL,
+                verification_status TEXT NOT NULL DEFAULT 'Pending',
+                implemented_by TEXT NOT NULL,
+                implemented_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                verified_by TEXT,
+                verified_at TEXT,
+                FOREIGN KEY (risk_assessment_id) REFERENCES risk_assessments(id),
+                FOREIGN KEY (implemented_by) REFERENCES users(id),
+                FOREIGN KEY (verified_by) REFERENCES users(id)
+            )",
+            [],
+        )?;
+
         // Create indexes for performance
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_audit_trail_timestamp ON audit_trail(timestamp)",
@@ -214,6 +234,21 @@ impl Database {
         
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status)",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_risk_assessments_status ON risk_assessments(status)",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_risk_assessments_device ON risk_assessments(device_name)",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_control_measures_risk_id ON control_measures(risk_assessment_id)",
             [],
         )?;
 
@@ -265,19 +300,20 @@ impl Database {
             })?;
 
         let mut query = "SELECT * FROM audit_trail".to_string();
-        let mut params: Vec<&dyn rusqlite::ToSql> = Vec::new();
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
         if let Some(uid) = user_id {
             query.push_str(" WHERE user_id = ?");
-            params.push(&uid);
+            params.push(Box::new(uid.to_string()));
         }
 
         query.push_str(" ORDER BY timestamp DESC LIMIT ? OFFSET ?");
-        params.push(&limit);
-        params.push(&offset);
+        params.push(Box::new(limit));
+        params.push(Box::new(offset));
 
         let mut stmt = conn.prepare(&query)?;
-        let audit_iter = stmt.query_map(params.as_slice(), |row| {
+        let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+        let audit_iter = stmt.query_map(param_refs.as_slice(), |row| {
             Ok(AuditTrailEntry {
                 id: row.get(0)?,
                 timestamp: row.get(1)?,
@@ -449,8 +485,8 @@ impl Database {
                 message: format!("Failed to get database connection: {}", e),
             })?;
 
-        let backup_conn = Connection::open(backup_path)?;
-        let backup = rusqlite::backup::Backup::new(&*conn, &backup_conn)?;
+        let mut backup_conn = Connection::open(backup_path)?;
+        let backup = rusqlite::backup::Backup::new(&*conn, &mut backup_conn)?;
         backup.run_to_completion(5, std::time::Duration::from_millis(250), None)?;
         Ok(())
     }

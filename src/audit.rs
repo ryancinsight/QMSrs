@@ -1,6 +1,7 @@
-use crate::{Result, QmsError, database::Database, logging::AuditLogEntry};
+use crate::{Result, QmsError, database::Database, logging::{AuditLogEntry, AuditOutcome}};
 use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
+use uuid::Uuid;
 
 /// Audit trail manager for FDA compliance
 pub struct AuditManager {
@@ -62,10 +63,67 @@ pub enum ComplianceStatus {
     Warning,
 }
 
+/// Simple audit logger for module-level audit logging
+pub struct AuditLogger {
+    session_id: String,
+}
+
+impl AuditLogger {
+    /// Create new audit logger with session ID
+    pub fn new(session_id: String) -> Self {
+        Self { session_id }
+    }
+
+    /// Create a test audit logger for unit tests
+    pub fn new_test() -> Self {
+        Self {
+            session_id: Uuid::new_v4().to_string(),
+        }
+    }
+
+    /// Log an audit event
+    pub async fn log_event(
+        &self,
+        user_id: &str,
+        action: &str,
+        resource: &str,
+        outcome: &str,
+        details: Option<String>,
+    ) -> Result<()> {
+        let audit_outcome = match outcome {
+            "SUCCESS" => AuditOutcome::Success,
+            "FAILURE" => AuditOutcome::Failure,
+            "WARNING" => AuditOutcome::Warning,
+            _ => AuditOutcome::Success,
+        };
+
+        let mut entry = AuditLogEntry::new(
+            user_id.to_string(),
+            action.to_string(),
+            resource.to_string(),
+            audit_outcome,
+            self.session_id.clone(),
+        );
+
+        if let Some(details) = details {
+            let metadata = serde_json::json!({
+                "details": details
+            });
+            entry = entry.with_metadata(metadata);
+        }
+
+        // Validate and log the entry
+        entry.validate()?;
+        entry.log();
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{config::DatabaseConfig, logging::AuditOutcome};
+    use crate::database::DatabaseConfig;
 
     #[test]
     fn test_audit_manager_creation() {

@@ -128,7 +128,21 @@ impl From<std::io::Error> for QmsError {
     }
 }
 
-// Database conversion removed for simplification
+impl From<rusqlite::Error> for QmsError {
+    fn from(err: rusqlite::Error) -> Self {
+        QmsError::Database {
+            message: err.to_string(),
+        }
+    }
+}
+
+impl From<r2d2::Error> for QmsError {
+    fn from(err: r2d2::Error) -> Self {
+        QmsError::Database {
+            message: format!("Connection pool error: {}", err),
+        }
+    }
+}
 
 impl From<serde_json::Error> for QmsError {
     fn from(err: serde_json::Error) -> Self {

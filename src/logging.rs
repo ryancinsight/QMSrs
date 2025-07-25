@@ -48,28 +48,7 @@ pub fn init_tracing(config: &LoggingConfig) -> Result<tracing_appender::non_bloc
                 .with_file(true)
         );
 
-    // Add file logging layer
-    let subscriber = if config.json_format {
-        subscriber.with(
-            tracing_subscriber::fmt::layer()
-                .json()
-                .with_writer(non_blocking)
-                .with_target(true)
-                .with_thread_ids(true)
-                .with_line_number(true)
-                .with_file(true)
-        )
-    } else {
-        subscriber.with(
-            tracing_subscriber::fmt::layer()
-                .with_writer(non_blocking)
-                .with_target(true)
-                .with_thread_ids(true)
-                .with_line_number(true)
-                .with_file(true)
-        )
-    };
-
+    // Initialize simple console logging
     subscriber.init();
 
     // Log initialization
