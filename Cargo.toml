@@ -18,7 +18,7 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }
 
 # Database with connection pool
-rusqlite = { version = "0.29", features = ["bundled", "chrono", "serde_json", "backup"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
 r2d2 = "0.8"
 r2d2_sqlite = "0.22"
 
@@ -28,25 +28,25 @@ crossterm = "0.26"
 
 # Encryption for proper digital signatures
 ring = "0.17"
-base64 = "0.21"
+base64 = "0.22"
 
 # Configuration
-toml = "0.5"
-
-# CLI argument parsing
-clap = { version = "4.0", features = ["derive"] }
+toml = "0.8"
 
 # Error Handling
 thiserror = "1.0"
 anyhow = "1.0"
+clap = { version = "4.0", features = ["derive"] }
 
 # Async runtime
 tokio = { version = "1.0", features = ["full"] }
 
 # Tracing for audit logs
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+tracing-subscriber = "0.3"
 tracing-appender = "0.2"
+sha2 = "0.10"
+rand = "0.8"
 
 [dev-dependencies]
 tempfile = "3.0"
