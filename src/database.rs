@@ -312,8 +312,7 @@ impl Database {
         params.push(Box::new(offset));
 
         let mut stmt = conn.prepare(&query)?;
-        let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
-        let audit_iter = stmt.query_map(param_refs.as_slice(), |row| {
+        let audit_iter = stmt.query_map(params.iter().map(|p| p.as_ref()), |row| {
             Ok(AuditTrailEntry {
                 id: row.get(0)?,
                 timestamp: row.get(1)?,
