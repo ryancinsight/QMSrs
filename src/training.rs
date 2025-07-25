@@ -17,6 +17,7 @@ use crate::{audit::AuditLogger, error::Result};
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use crate::training_repo::TrainingRepository;
 
 /// Training status lifecycle
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -67,11 +68,15 @@ pub struct TrainingMetrics {
 /// Service layer for training management
 pub struct TrainingService {
     audit_logger: AuditLogger,
+    repository: TrainingRepository,
 }
 
 impl TrainingService {
-    pub fn new(audit_logger: AuditLogger) -> Self {
-        Self { audit_logger }
+    pub fn new(audit_logger: AuditLogger, repository: TrainingRepository) -> Self {
+        Self {
+            audit_logger,
+            repository,
+        }
     }
 
     /// Assign a new training to employee
@@ -95,6 +100,9 @@ impl TrainingService {
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };
+
+        // Persist to database
+        self.repository.insert(&record)?;
 
         // Audit log
         self.audit_logger
@@ -123,6 +131,9 @@ impl TrainingService {
         record.completion_date = Some(Utc::now().date_naive());
         record.status = TrainingStatus::Completed;
         record.updated_at = Utc::now();
+
+        // Persist update first
+        self.repository.update(record)?;
 
         // Audit
         self.audit_logger
@@ -155,15 +166,30 @@ impl TrainingService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::audit::AuditLogger;
+    use crate::{audit::AuditLogger, config::DatabaseConfig};
+    use crate::database::Database;
+    use crate::training_repo::TrainingRepository;
 
     fn test_logger() -> AuditLogger {
         AuditLogger::new_test()
     }
 
+    fn setup_service() -> TrainingService {
+        let db = Database::new(DatabaseConfig {
+            url: ":memory:".to_string(),
+            max_connections: 10,
+            wal_mode: false,
+            backup_interval_hours: 24,
+            backup_retention_days: 1,
+        })
+        .unwrap();
+        let repo = TrainingRepository::new(db);
+        TrainingService::new(test_logger(), repo)
+    }
+
     #[tokio::test]
     async fn test_create_training_record() {
-        let service = TrainingService::new(test_logger());
+        let service = setup_service();
         let rec = service
             .create_training_record(
                 "emp1".to_string(),
@@ -179,7 +205,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_mark_completed() {
-        let service = TrainingService::new(test_logger());
+        let service = setup_service();
         let mut rec = service
             .create_training_record(
                 "emp1".to_string(),
@@ -200,7 +226,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_metrics_calculation() {
-        let service = TrainingService::new(test_logger());
+        let service = setup_service();
         let mut records = Vec::new();
         // Completed
         let mut rec1 = service

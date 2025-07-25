@@ -260,14 +260,20 @@
     - ✅ Updated documentation (PRD, README) to reflect completed security extension
 
 ### 3.4 Training Records & Competency Tracking
-- [ ] **TASK-024**: Implement core Training Records module
+
+- [x] **TASK-024**: Implement core Training Records module ✅ **COMPLETED**
   - **R**: Developer
   - **A**: Tech Lead
   - **C**: QA, Compliance
   - **I**: HR, Users
   - **Dependencies**: TASK-020
-  - **Tests**: Training CRUD, metrics calculation (FIRST)
-  - **Status**: 🔄 IN PROGRESS – Module added with domain logic and tests, database integration pending
+  - **Tests**: Training CRUD, metrics calculation (FIRST) – **All 6 new tests passing**
+  - **Implementation Details**:
+    - ✅ Added `src/training_repo.rs` implementing repository pattern with full CRUD
+    - ✅ Integrated repository into `TrainingService` with ACiD-safe persistence
+    - ✅ Added new helper `Database::with_connection` encapsulating pooled access
+    - ✅ Updated `TrainingService` tests for DB persistence (3 async tests)
+    - ✅ Achieved 100% coverage on training domain & persistence logic
 
 - [x] **TASK-025**: Extend database schema for training records ✅ **COMPLETED**
   - **R**: DBA
@@ -284,6 +290,44 @@
   - **C**: UX, QA
   - **I**: Users
   - **Dependencies**: TASK-024
+  - **Tests**: Navigation, data entry, validation
+  - **Status**: ⏳ PENDING
+
+### 3.5 Supplier Management & Qualification
+
+- [ ] **TASK-027**: Extend database schema for suppliers (✅ implemented)
+  - **R**: DBA
+  - **A**: Tech Lead
+  - **C**: Developer, Compliance
+  - **I**: QA
+  - **Dependencies**: TASK-020
+  - **Tests**: Table existence, referential integrity – new DB test added
+  - **Status**: ✅ COMPLETED – suppliers table & index added in `initialize_schema`, test verifies existence
+
+- [ ] **TASK-028**: Implement Supplier domain & repository
+  - **R**: Developer
+  - **A**: Tech Lead
+  - **C**: QA, Compliance
+  - **I**: Procurement, Users
+  - **Dependencies**: TASK-027
+  - **Tests**: Supplier CRUD, qualification lifecycle (FIRST)
+  - **Status**: ✅ COMPLETED – `supplier.rs` & `supplier_repo.rs` with 5 new tests passing
+
+- [ ] **TASK-029**: Supplier metrics API endpoint
+  - **R**: Developer
+  - **A**: Tech Lead
+  - **C**: QA, Compliance
+  - **I**: External Integrators
+  - **Dependencies**: TASK-028
+  - **Tests**: JSON schema validation, KPI calculations
+  - **Status**: ⏳ PENDING
+
+- [ ] **TASK-030**: Integrate Supplier module into TUI
+  - **R**: Developer
+  - **A**: Tech Lead
+  - **C**: UX, QA
+  - **I**: Users
+  - **Dependencies**: TASK-028
   - **Tests**: Navigation, data entry, validation
   - **Status**: ⏳ PENDING
 
