@@ -70,9 +70,9 @@ impl<'a> AdverseEventRepo<'a> {
         )?;
         let row = stmt.query_row((id.to_string(),), |row| {
             Ok(AdverseEvent {
-                id: Uuid::parse_str(row.get::<_, String>(0)?.as_str()).unwrap(),
+                id: Uuid::parse_str(row.get::<_, String>(0)?.as_str()).map_err(|e| QmsError::Application { message: format!("Invalid UUID in DB: {e}") })?,
                 reported_on: DateTime::parse_from_rfc3339(row.get::<_, String>(1)?.as_str())
-                    .unwrap()
+                    .map_err(|e| QmsError::Application { message: format!("Invalid timestamp in DB: {e}") })?
                     .with_timezone(&Utc),
                 reporter: row.get(2)?,
                 description: row.get(3)?,
