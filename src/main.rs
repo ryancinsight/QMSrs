@@ -100,7 +100,7 @@ async fn run_tui_loop<B: ratatui::backend::Backend>(
         }
 
         // Small delay to prevent busy waiting
-        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(RENDER_LOOP_DELAY_MS)).await;
     }
 
     Ok(())
