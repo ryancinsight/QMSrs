@@ -1,5 +1,6 @@
 use anyhow::Result;
 use qmsrs::{config::Config, ui::TuiApp};
+use qmsrs::api;
 use ratatui::{
     backend::CrosstermBackend,
     Terminal,
@@ -48,6 +49,13 @@ async fn main() -> Result<()> {
     
     // Wait a moment for user to read
     tokio::time::sleep(tokio::time::Duration::from_millis(USER_READ_DELAY_MS)).await;
+    
+    // Start API server in background (Phase 3)
+    tokio::spawn(async {
+        if let Err(e) = api::serve("127.0.0.1:3000").await {
+            eprintln!("API server error: {e}");
+        }
+    });
     
     // Start TUI application
     start_tui().await?;

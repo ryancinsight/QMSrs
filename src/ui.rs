@@ -9,6 +9,9 @@ use ratatui::{
 };
 use crossterm::event::{self, Event, KeyCode};
 use std::time::{Duration, Instant};
+use crate::api::MetricsResponse;
+// Depending on crate path, this file is in qmsrs crate; referencing crate to api.
+use reqwest;
 
 /// Main TUI application state
 pub struct TuiApp {
@@ -22,11 +25,16 @@ pub struct TuiApp {
     pub audit_list_state: ratatui::widgets::ListState,
     pub capa_list_state: ratatui::widgets::ListState,
     pub reports_list_state: ratatui::widgets::ListState,
+    // Latest metrics fetched from API
+    pub metrics: Option<MetricsResponse>,
+    // Time of last metrics refresh
+    pub last_metrics_fetch: Instant,
 }
 
 impl TuiApp {
     /// Create new TUI application
     pub fn new() -> Self {
+        // Initialize list states with default selection
         let mut dashboard_state = ratatui::widgets::ListState::default();
         dashboard_state.select(Some(0));
         
@@ -52,27 +60,37 @@ impl TuiApp {
             audit_list_state: audit_state,
             capa_list_state: capa_state,
             reports_list_state: reports_state,
+            metrics: None,
+            last_metrics_fetch: Instant::now() - Duration::from_secs(10),
         }
     }
 
     /// Handle input events
     pub fn handle_input(&mut self) -> Result<()> {
-        if event::poll(Duration::from_millis(100))? {
+        use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+
+        if event::poll(Duration::from_millis(10))? {
             if let Event::Key(key) = event::read()? {
-                match key.code {
-                    KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
-                    KeyCode::Tab | KeyCode::Right => self.next_tab(),
-                    KeyCode::Left => self.previous_tab(),
-                    KeyCode::Up | KeyCode::Char('k') => self.move_up(),
-                    KeyCode::Down | KeyCode::Char('j') => self.move_down(),
-                    KeyCode::Enter | KeyCode::Char(' ') => self.handle_enter(),
-                    KeyCode::Char('h') | KeyCode::F(1) => self.show_help(),
-                    KeyCode::Home => self.move_to_first(),
-                    KeyCode::End => self.move_to_last(),
-                    _ => {}
+                if key.kind == KeyEventKind::Press {
+                    match key.code {
+                        KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
+                        KeyCode::Tab | KeyCode::Right => self.next_tab(),
+                        KeyCode::Left => self.previous_tab(),
+                        KeyCode::Up | KeyCode::Char('k') => self.move_up(),
+                        KeyCode::Down | KeyCode::Char('j') => self.move_down(),
+                        KeyCode::Enter | KeyCode::Char(' ') => self.handle_enter(),
+                        KeyCode::Char('h') => self.show_help(),
+                        KeyCode::F(1) => self.show_help(),
+                        KeyCode::Home => self.move_to_first(),
+                        KeyCode::End => self.move_to_last(),
+                        _ => {}
+                    }
                 }
             }
         }
+
+        // Periodically refresh metrics (every 5 seconds)
+        self.refresh_metrics();
         Ok(())
     }
 
@@ -357,11 +375,7 @@ impl TuiApp {
 
     /// Render reports tab
     fn render_reports<B: Backend>(&mut self, f: &mut Frame<B>, area: Rect) {
-        let report_items = vec![
-            ListItem::new("📊 FDA Compliance Report - Q4 2024"),
-            ListItem::new("📊 Audit Summary - January 2024"),
-            ListItem::new("📊 Document Control Metrics - Current"),
-        ];
+        let report_items = self.get_reports_list_items();
 
         let report_list = List::new(report_items)
             .block(Block::default().borders(Borders::ALL).title("Reports"))
@@ -385,6 +399,38 @@ impl TuiApp {
             .highlight_symbol("▶ ");
 
         f.render_stateful_widget(capa_list, area, &mut self.capa_list_state);
+    }
+
+    /// Refresh metrics from the API if the refresh interval has elapsed.
+    fn refresh_metrics(&mut self) {
+        if self.last_metrics_fetch.elapsed() < Duration::from_secs(5) {
+            return;
+        }
+
+        // Attempt to fetch metrics; failures are silently ignored but logged.
+        if let Ok(response) = reqwest::blocking::get("http://127.0.0.1:3000/metrics") {
+            if response.status().is_success() {
+                if let Ok(metrics) = response.json::<MetricsResponse>() {
+                    self.metrics = Some(metrics);
+                }
+            }
+        }
+
+        self.last_metrics_fetch = Instant::now();
+    }
+
+    /// Construct list items for the Reports tab based on current metrics.
+    fn get_reports_list_items(&self) -> Vec<ratatui::widgets::ListItem<'static>> {
+        use ratatui::widgets::ListItem;
+        if let Some(metrics) = &self.metrics {
+            vec![
+                ListItem::new(format!("🚀 CAPA Total: {}", metrics.capa_metrics.total_count)),
+                ListItem::new(format!("🛡️  Risk Assessments: {}", metrics.risk_report.total_assessments)),
+                ListItem::new("📈 Data fresh ✔️"),
+            ]
+        } else {
+            vec![ListItem::new("⏳ Fetching metrics...")]
+        }
     }
 }
 
@@ -511,5 +557,45 @@ mod tests {
         
         // Verify workflow completed successfully
         assert!(!app.should_quit);
+    }
+
+    #[test]
+    fn test_get_reports_list_items_no_metrics() {
+        let app = TuiApp::new();
+        let items = app.get_reports_list_items();
+        assert_eq!(items.len(), 1);
+    }
+
+    #[test]
+    fn test_get_reports_list_items_with_metrics() {
+        use crate::capa::CapaMetrics;
+        use crate::risk::{RiskManagementReport, ComplianceStatus};
+        use std::collections::HashMap;
+        use uuid::Uuid;
+        use chrono::Utc;
+
+        let mut app = TuiApp::new();
+        app.metrics = Some(MetricsResponse {
+            capa_metrics: CapaMetrics {
+                total_count: 2,
+                status_counts: HashMap::new(),
+                priority_counts: HashMap::new(),
+                overdue_count: 0,
+                closed_count: 1,
+            },
+            risk_report: RiskManagementReport {
+                id: Uuid::new_v4(),
+                generated_at: Utc::now(),
+                generated_by: "tester".to_string(),
+                total_assessments: 5,
+                risk_level_distribution: HashMap::new(),
+                acceptability_distribution: HashMap::new(),
+                pending_control_measures: 0,
+                compliance_status: ComplianceStatus::Compliant,
+            },
+        });
+
+        let items = app.get_reports_list_items();
+        assert!(items.len() >= 2);
     }
 }

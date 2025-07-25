@@ -160,14 +160,8 @@ Each requirement broken into testable units with acceptance criteria
 ### 2.7.1 RESTful API Integration ✅ COMPLETED
 - **REQ-API001**: JSON Metrics Endpoint exposing CAPA and Risk summaries ✅ COMPLETED
 
-### 2.7.2 Advanced Reporting Dashboard
-- **REQ-REP001**: TUI Reports Tab to fetch live metrics via API
-  - **I**: Independent from core workflows
-  - **N**: Additional reports configurable
-  - **V**: Provides near-real-time compliance visibility
-  - **E**: 1-2 days for integration
-  - **S**: Focused on rendering reports
-  - **T**: Testable via TUI workflow tests
+### 2.7.2 Advanced Reporting Dashboard ✅ COMPLETED
+- **REQ-REP001**: TUI Reports Tab to fetch live metrics via API ✅ COMPLETED
 
 ### 2.7.3 External System Authentication
 - **REQ-AUTH001**: API token-based authentication

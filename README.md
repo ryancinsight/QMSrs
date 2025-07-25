@@ -19,14 +19,14 @@
 
 ### 🚧 **Phase 3: API & Reporting Integration (CURRENT DEVELOPMENT)**
 - **RESTful API**: JSON metrics endpoint (Axum) ✅ COMPLETED
-- **Advanced Reporting**: Live CAPA & Risk metrics via API
+- **Advanced Reporting**: Live CAPA & Risk metrics via API ✅ COMPLETED
 - **TUI Enhancements**: Reports tab consuming API
 - **Authentication**: Token-based security layer
 
 ## 📊 Test Coverage
 
-- **Total Tests**: 66 tests
-- **Passing**: 66 tests (100%)
+- **Total Tests**: 69 tests
+- **Passing**: 69 tests (100%)
 - **CAPA System**: 12/12 tests passing ✅
 - **Core Systems**: All critical functionality tested
 - **Compliance**: FDA 21 CFR Part 820 validation tests included

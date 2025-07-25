@@ -11,6 +11,8 @@
 //! - INVEST: Self-contained feature deployable independently.
 
 use std::sync::{Arc, RwLock};
+use std::net::SocketAddr;
+use hyper::Error as HyperError;
 
 use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
 use serde::Serialize;
@@ -101,6 +103,18 @@ pub fn router() -> Router {
     Router::new()
         .route("/metrics", get(get_metrics))
         .with_state(state)
+}
+
+pub use MetricsResponse;
+
+/// Start the API server on the provided address (e.g., "127.0.0.1:3000").
+/// This is intended to run in a background Tokio task.
+pub async fn serve(addr: &str) -> Result<(), HyperError> {
+    let socket: SocketAddr = addr.parse().expect("invalid socket address");
+    let router = router();
+    axum::Server::bind(&socket)
+        .serve(router.into_make_service())
+        .await
 }
 
 #[cfg(test)]

@@ -233,14 +233,14 @@
   - **Status**: ✅ COMPLETED - Metrics endpoint returns validated JSON
 
 ### 3.2 Reporting Dashboard Enhancements
-- [ ] **TASK-022**: Update TUI Reports tab to fetch live data from API
+- [x] **TASK-022**: Update TUI Reports tab to fetch live data from API
   - **R**: Developer
   - **A**: Tech Lead
   - **C**: UX, Compliance
   - **I**: Users
   - **Dependencies**: TASK-021
   - **Tests**: TUI workflow shows refreshed metrics
-  - **Status**: ⏳ PENDING
+  - **Status**: ✅ COMPLETED - Reports tab displays live CAPA/Risk metrics via API
 
 ### 3.3 Security Extensions
 - [ ] **TASK-023**: Implement token-based API authentication
