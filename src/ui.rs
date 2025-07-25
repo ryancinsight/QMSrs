@@ -168,11 +168,14 @@ impl TuiApp {
                 self.capa_list_state.select(Some(i));
             }
             TabState::Suppliers => {
-                let len = 5; // supplier list items count
-                let i = match self.supplier_list_state.selected() {
-                    Some(i) => if i == 0 { len - 1 } else { i - 1 },
-                    None => 0,
-                };
+let len = self.get_supplier_list_items().len();
+if len == 0 {
+    return;
+}
+let i = match self.supplier_list_state.selected() {
+    Some(i) => if i == 0 { len - 1 } else { i - 1 },
+    None => 0,
+};
                 self.supplier_list_state.select(Some(i));
             }
             TabState::Training => {
