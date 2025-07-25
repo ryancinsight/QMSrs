@@ -22,11 +22,11 @@
   - **Tests**: TUI renders correctly, keyboard navigation works
   - **Status**: ✅ IMPLEMENTED - TUI infrastructure complete, needs main.rs integration
 
-- [ ] **TASK-004**: Create navigation system and menu structure
+- [x] **TASK-004**: Create navigation system and menu structure ✅ **COMPLETED**
   - **R**: Developer, **A**: Tech Lead, **C**: UX, **I**: Users
   - **Dependencies**: TASK-003
   - **Tests**: All menu items accessible, navigation intuitive
-  - **Status**: IN PROGRESS - Basic navigation implemented, needs full integration
+  - **Status**: Completed - Full navigation system with enhanced keyboard shortcuts, action handlers
 
 ### 1.3 Database Layer (ISOLATION)
 - [x] **TASK-005**: Design and implement SQLite schema for FDA compliance
@@ -139,11 +139,11 @@
   - **Compliance**: FDA 21 CFR Part 820 compliant CAPA workflow
   - **Dependencies**: Database ✅, Audit System ✅, Security ✅
 
-- [ ] **TASK-018**: Integrate CAPA with TUI interface
+- [x] **TASK-018**: Integrate CAPA with TUI interface ✅ **COMPLETED**
   - **R**: Developer, **A**: Tech Lead, **C**: UX, **I**: Users
   - **Dependencies**: TASK-017, TASK-014
   - **Tests**: CAPA navigation, user workflows, data entry validation
-  - **Status**: Not Started
+  - **Status**: Completed - CAPA tab integrated with navigation, 3 sample items, tests passing
 
 ## Testing and Quality Assurance (FIRST Principles)
 

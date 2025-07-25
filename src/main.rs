@@ -11,6 +11,10 @@ use crossterm::{
 };
 use std::io;
 
+// Constants for timing
+const USER_READ_DELAY_MS: u64 = 2000;  // 2 seconds for user to read messages
+const RENDER_LOOP_DELAY_MS: u64 = 50;  // 50ms for smooth rendering
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize the QMS system
@@ -39,7 +43,7 @@ async fn main() -> Result<()> {
     
     // Ask user if they want to start the TUI
     println!("\nStarting TUI interface...");
-    println!("Controls: Tab (navigate tabs), ↑↓ (navigate items), q (quit), Enter (select)");
+    println!("Controls: Tab/→← (navigate tabs), ↑↓/jk (navigate items), q/Esc (quit), Enter/Space (select), h/F1 (help)");
     println!("Press any key to continue or Ctrl+C to exit...");
     
     // Wait a moment for user to read
