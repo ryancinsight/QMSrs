@@ -146,9 +146,9 @@ Each requirement broken into testable units with acceptance criteria
   - Further UX refinements and accessibility (TASK-034,TASK-035 ongoing)
 
 - **Phase 5**: Post-Market Surveillance & Cloud Synchronization (NEXT)
-  - Real-time adverse event logging & signal detection
-  - Secure cloud backup & multi-site replication
-  - Automated software upgrade delivery
+  - ✅ Adverse Event Logging core domain & repository (TASK-040–041)
+  - Cloud backup service scaffolding (TASK-042)
+  - Real-time signal detection prototype (TASK-043)
 
 ## 7. Acceptance Criteria (Phase 2)
 
