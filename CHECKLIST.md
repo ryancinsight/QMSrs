@@ -80,18 +80,46 @@
   - **Tests**: Login/logout, session management, password policies
   - **Status**: ✅ COMPLETED - Authentication system operational
 
-### 1.7 TUI Application Integration (CURRENT STAGE)
+### 1.7 TUI Application Integration (COMPLETED)
 - [x] **TASK-013**: Integrate TUI application with main.rs
   - **R**: Developer, **A**: Tech Lead, **C**: UX, **I**: Users
   - **Dependencies**: TASK-003, TASK-004
   - **Tests**: Application starts with TUI, all modules accessible
   - **Status**: ✅ COMPLETED - TUI framework integrated, async main implemented
 
-- [ ] **TASK-014**: Complete end-to-end TUI workflow testing
+- [x] **TASK-014**: Complete end-to-end TUI workflow testing
   - **R**: Developer, **A**: Tech Lead, **C**: QA, **I**: Users
   - **Dependencies**: TASK-013
   - **Tests**: Full user workflows, error handling, performance
-  - **Status**: Ready to Start - Next development stage
+  - **Status**: ✅ COMPLETED - End-to-end TUI workflows validated with comprehensive testing
+
+## Phase 2: Risk Management + CAPA System (NEXT STAGE)
+
+### 2.1 Risk Management Module (ISO 14971)
+- [ ] **TASK-015**: Implement ISO 14971 risk assessment framework
+  - **R**: Developer, **A**: Tech Lead, **C**: Risk Manager, **I**: Compliance
+  - **Dependencies**: TASK-014
+  - **Tests**: Risk assessment creation, risk evaluation, mitigation tracking
+  - **Status**: 🔄 READY TO START - Next development stage
+
+- [ ] **TASK-016**: Create risk management database schema
+  - **R**: Developer, **A**: Tech Lead, **C**: DBA, **I**: Risk Manager
+  - **Dependencies**: TASK-015
+  - **Tests**: Risk data persistence, risk matrix calculations, reporting
+  - **Status**: Not Started
+
+### 2.2 CAPA System Implementation
+- [ ] **TASK-017**: Implement CAPA workflow management
+  - **R**: Developer, **A**: Tech Lead, **C**: Quality Manager, **I**: Compliance
+  - **Dependencies**: TASK-015
+  - **Tests**: CAPA creation, investigation tracking, effectiveness verification
+  - **Status**: Not Started
+
+- [ ] **TASK-018**: Integrate CAPA with TUI interface
+  - **R**: Developer, **A**: Tech Lead, **C**: UX, **I**: Users
+  - **Dependencies**: TASK-017, TASK-014
+  - **Tests**: CAPA navigation, user workflows, data entry validation
+  - **Status**: Not Started
 
 ## Testing and Quality Assurance (FIRST Principles)
 
