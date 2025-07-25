@@ -17,6 +17,14 @@
 pub mod config;
 pub mod document;
 pub mod error;
+// Temporarily commented out for TASK-013 clean build
+// pub mod app;
+// pub mod database;
+// pub mod security;
+// pub mod audit;
+// pub mod ui;
+// pub mod logging;
+// pub mod cli;
 
 pub use error::{QmsError, Result};
 
