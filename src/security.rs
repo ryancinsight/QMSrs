@@ -163,7 +163,7 @@ impl SecurityManager {
         }
 
         let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
-        let nonce = Aes256Gcm::generate_nonce(&mut AeadOsRng);
+        let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
         
         let ciphertext = cipher.encrypt(&nonce, data)
             .map_err(|e| QmsError::Encryption {
