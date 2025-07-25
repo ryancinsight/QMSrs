@@ -11,6 +11,7 @@ use crossterm::event::{self, Event, KeyCode};
 use std::time::{Duration, Instant};
 use crate::api::MetricsResponse;
 use crate::supplier::SupplierMetrics;
+use crate::training::TrainingMetrics;
 // Depending on crate path, this file is in qmsrs crate; referencing crate to api.
 use reqwest;
 
@@ -27,12 +28,14 @@ pub struct TuiApp {
     pub capa_list_state: ratatui::widgets::ListState,
     pub reports_list_state: ratatui::widgets::ListState,
     pub supplier_list_state: ratatui::widgets::ListState,
+    pub training_list_state: ratatui::widgets::ListState,
     // Latest metrics fetched from API
     pub metrics: Option<MetricsResponse>,
     // Time of last metrics refresh
     pub last_metrics_fetch: Instant,
     // ADD
     pub supplier_metrics: Option<SupplierMetrics>,
+    pub training_metrics: Option<TrainingMetrics>,
 }
 
 impl TuiApp {
@@ -56,6 +59,8 @@ impl TuiApp {
         
         let mut supplier_state = ratatui::widgets::ListState::default();
         supplier_state.select(Some(0));
+        let mut training_state = ratatui::widgets::ListState::default();
+        training_state.select(Some(0));
         
         Self {
             should_quit: false,
@@ -68,9 +73,11 @@ impl TuiApp {
             capa_list_state: capa_state,
             reports_list_state: reports_state,
             supplier_list_state: supplier_state,
+            training_list_state: training_state,
             metrics: None,
             last_metrics_fetch: Instant::now() - Duration::from_secs(10),
             supplier_metrics: None,
+            training_metrics: None,
         }
     }
 
@@ -110,7 +117,8 @@ impl TuiApp {
             TabState::Documents => TabState::AuditTrail,
             TabState::AuditTrail => TabState::Capa,
             TabState::Capa => TabState::Suppliers,
-            TabState::Suppliers => TabState::Reports,
+            TabState::Suppliers => TabState::Training,
+            TabState::Training => TabState::Reports,
             TabState::Reports => TabState::Dashboard,
         };
     }
@@ -123,7 +131,8 @@ impl TuiApp {
             TabState::AuditTrail => TabState::Documents,
             TabState::Capa => TabState::AuditTrail,
             TabState::Suppliers => TabState::Capa,
-            TabState::Reports => TabState::Suppliers,
+            TabState::Training => TabState::Suppliers,
+            TabState::Reports => TabState::Training,
         };
     }
 
@@ -165,6 +174,14 @@ impl TuiApp {
                     None => 0,
                 };
                 self.supplier_list_state.select(Some(i));
+            }
+            TabState::Training => {
+                let len = 4; // metrics rows
+                let i = match self.training_list_state.selected() {
+                    Some(i) => if i == 0 { len - 1 } else { i - 1 },
+                    None => 0,
+                };
+                self.training_list_state.select(Some(i));
             }
             TabState::Reports => {
                 let i = match self.reports_list_state.selected() {
@@ -215,6 +232,14 @@ impl TuiApp {
                 };
                 self.supplier_list_state.select(Some(i));
             }
+            TabState::Training => {
+                let len = 4;
+                let i = match self.training_list_state.selected() {
+                    Some(i) => if i >= len - 1 { 0 } else { i + 1 },
+                    None => 0,
+                };
+                self.training_list_state.select(Some(i));
+            }
             TabState::Reports => {
                 let i = match self.reports_list_state.selected() {
                     Some(i) => if i >= 2 { 0 } else { i + 1 },
@@ -233,6 +258,7 @@ impl TuiApp {
             TabState::AuditTrail => self.audit_list_state.select(Some(0)),
             TabState::Capa => self.capa_list_state.select(Some(0)),
             TabState::Suppliers => self.supplier_list_state.select(Some(0)),
+            TabState::Training => self.training_list_state.select(Some(0)),
             TabState::Reports => self.reports_list_state.select(Some(0)),
         }
     }
@@ -245,6 +271,7 @@ impl TuiApp {
             TabState::AuditTrail => self.audit_list_state.select(Some(2)), // 3 items, index 2
             TabState::Capa => self.capa_list_state.select(Some(2)), // 3 items, index 2
             TabState::Suppliers => self.supplier_list_state.select(Some(4)), // 5 items, index 4
+            TabState::Training => self.training_list_state.select(Some(3)), // 4 items index 3
             TabState::Reports => self.reports_list_state.select(Some(2)), // 3 items, index 2
         }
     }
@@ -321,6 +348,11 @@ impl TuiApp {
                     }
                 }
             }
+            TabState::Training => {
+                if let Some(selected) = self.training_list_state.selected() {
+                    println!("Training item {} selected", selected);
+                }
+            }
             TabState::Reports => {
                 if let Some(selected) = self.reports_list_state.selected() {
                     match selected {
@@ -349,13 +381,14 @@ impl TuiApp {
             TabState::AuditTrail => self.render_audit_trail(f, chunks[1]),
             TabState::Capa => self.render_capa(f, chunks[1]),
             TabState::Suppliers => self.render_suppliers(f, chunks[1]),
+            TabState::Training => self.render_training(f, chunks[1]),
             TabState::Reports => self.render_reports(f, chunks[1]),
         }
     }
 
     /// Render tab bar
     fn render_tabs<B: Backend>(&self, f: &mut Frame<B>, area: Rect) {
-        let tab_titles = vec!["Dashboard", "Documents", "Audit Trail", "CAPA", "Suppliers", "Reports"];
+        let tab_titles = vec!["Dashboard", "Documents", "Audit Trail", "CAPA", "Suppliers", "Training", "Reports"];
         let tabs = Tabs::new(tab_titles)
             .block(Block::default().borders(Borders::ALL).title("QMS - FDA Compliant"))
             .style(Style::default().fg(Color::White))
@@ -455,6 +488,16 @@ impl TuiApp {
         f.render_stateful_widget(supplier_list, area, &mut self.supplier_list_state);
     }
 
+    /// Render Training tab
+    fn render_training<B: Backend>(&mut self, f: &mut Frame<B>, area: Rect) {
+        let items = self.get_training_list_items();
+        let list = List::new(items)
+            .block(Block::default().borders(Borders::ALL).title("Training Records"))
+            .highlight_style(Style::default().bg(Color::LightGreen).fg(Color::Black))
+            .highlight_symbol("▶ ");
+        f.render_stateful_widget(list, area, &mut self.training_list_state);
+    }
+
     /// Refresh metrics from the API if the refresh interval has elapsed.
     fn refresh_metrics(&mut self) {
         if self.last_metrics_fetch.elapsed() < Duration::from_secs(5) {
@@ -474,6 +517,14 @@ impl TuiApp {
             if response.status().is_success() {
                 if let Ok(metrics) = response.json::<SupplierMetrics>() {
                     self.supplier_metrics = Some(metrics);
+                }
+            }
+        }
+        // NEW fetch training metrics
+        if let Ok(response) = reqwest::blocking::get("http://127.0.0.1:3000/training_metrics") {
+            if response.status().is_success() {
+                if let Ok(metrics) = response.json::<TrainingMetrics>() {
+                    self.training_metrics = Some(metrics);
                 }
             }
         }
@@ -510,6 +561,21 @@ impl TuiApp {
             vec![ListItem::new("⏳ Fetching supplier metrics...")]
         }
     }
+
+    /// Construct list items for the Training tab based on current metrics.
+    fn get_training_list_items(&self) -> Vec<ratatui::widgets::ListItem<'static>> {
+        use ratatui::widgets::ListItem;
+        if let Some(metrics) = &self.training_metrics {
+            vec![
+                ListItem::new(format!("👥 Total Trainings: {}", metrics.total_count)),
+                ListItem::new(format!("✅ Completed: {}", metrics.completed)),
+                ListItem::new(format!("⏳ Pending: {}", metrics.pending)),
+                ListItem::new(format!("⚠️  Overdue: {}", metrics.overdue)),
+            ]
+        } else {
+            vec![ListItem::new("⏳ Fetching training metrics...")]
+        }
+    }
 }
 
 /// Tab states for navigation
@@ -520,13 +586,15 @@ pub enum TabState {
     AuditTrail = 2,
     Capa = 3,
     Suppliers = 4,
-    Reports = 5,
+    Training = 5,
+    Reports = 6,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::supplier::SupplierMetrics;
+    use crate::training::TrainingMetrics;
 
     #[test]
     fn test_tui_app_creation() {
@@ -552,6 +620,9 @@ mod tests {
         
         app.next_tab();
         assert_eq!(app.current_tab, TabState::Suppliers);
+        
+        app.next_tab();
+        assert_eq!(app.current_tab, TabState::Training);
         
         app.next_tab();
         assert_eq!(app.current_tab, TabState::Reports);
@@ -630,11 +701,19 @@ mod tests {
         app.move_down();
         assert_eq!(app.supplier_list_state.selected(), Some(1));
         
-        // 10. Switch to reports
+        // 10. Switch to Training
+        app.next_tab();
+        assert_eq!(app.current_tab, TabState::Training);
+        
+        // 11. Navigate Training items
+        app.move_down();
+        assert_eq!(app.training_list_state.selected(), Some(1));
+        
+        // 12. Switch to reports
         app.next_tab();
         assert_eq!(app.current_tab, TabState::Reports);
         
-        // 11. Return to dashboard
+        // 13. Return to dashboard
         app.next_tab();
         assert_eq!(app.current_tab, TabState::Dashboard);
         
@@ -701,5 +780,20 @@ mod tests {
         });
         let items = app.get_supplier_list_items();
         assert_eq!(items.len(), 5);
+    }
+
+    #[test]
+    fn test_get_training_list_items_no_metrics() {
+        let app = TuiApp::new();
+        let items = app.get_training_list_items();
+        assert_eq!(items.len(), 1);
+    }
+
+    #[test]
+    fn test_get_training_list_items_with_metrics() {
+        let mut app = TuiApp::new();
+        app.training_metrics = Some(TrainingMetrics { total_count: 5, completed:3, pending:1, overdue:1 });
+        let items = app.get_training_list_items();
+        assert_eq!(items.len(), 4);
     }
 }

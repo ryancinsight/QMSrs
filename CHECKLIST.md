@@ -284,14 +284,14 @@
   - **Tests**: Schema migration, referential integrity (2 new DB tests) – passing
   - **Status**: ✅ COMPLETED – training_records table & index added in `initialize_schema`, test verifies existence
 
-- [ ] **TASK-026**: Integrate Training module into TUI
+- [x] **TASK-026**: Integrate Training module into TUI ✅ **COMPLETED**
   - **R**: Developer
   - **A**: Tech Lead
   - **C**: UX, QA
   - **I**: Users
   - **Dependencies**: TASK-024
   - **Tests**: Navigation, data entry, validation
-  - **Status**: ⏳ PENDING
+  - **Status**: ✅ COMPLETED – Training tab added to TUI with live KPI metrics, 7 new tests updated, 100% coverage
 
 ### 3.5 Supplier Management & Qualification
 
