@@ -27,6 +27,7 @@ use crate::risk::{RiskAssessment, RiskManagementReport, RiskManagementService};
 use crate::audit::{AuditLogger, AuditManager};
 use crate::config::DatabaseConfig;
 use crate::database::Database;
+use crate::supplier::{Supplier, SupplierService, SupplierMetrics};
 
 /// In-memory representation of an API token with TTL & scopes.
 #[derive(Clone, Debug)]
@@ -82,10 +83,14 @@ pub struct ApiState {
     pub capa_service: CapaService,
     /// Risk management service (ISO 14971)
     pub risk_service: RiskManagementService,
+    /// Supplier management service
+    pub supplier_service: SupplierService,
     /// In-memory CAPA records used for aggregation
     pub capa_records: Arc<RwLock<Vec<CapaRecord>>>,
     /// In-memory risk assessments used for aggregation
     pub risk_assessments: Arc<RwLock<Vec<RiskAssessment>>>,
+    /// In-memory supplier records used for aggregation
+    pub suppliers: Arc<RwLock<Vec<Supplier>>>,
     /// Token manager holding API auth tokens
     pub token_manager: TokenManager,
 }
@@ -103,18 +108,25 @@ impl ApiState {
             backup_retention_days: 90,
         };
         let database = Database::new(db_config).expect("failed to init in-memory DB");
-        let audit_manager = AuditManager::new(database);
+        let audit_manager = AuditManager::new(database.clone());
         let capa_service = CapaService::new(audit_manager);
 
         // Risk service relies only on a lightweight audit logger
-        let audit_logger = AuditLogger::new_test();
-        let risk_service = RiskManagementService::new(audit_logger);
+        let risk_logger = AuditLogger::new_test();
+        let risk_service = RiskManagementService::new(risk_logger);
+
+        // Supplier service (separate logger for better isolation)
+        let supplier_logger = AuditLogger::new_test();
+        let supplier_repository = crate::supplier_repo::SupplierRepository::new(database.clone());
+        let supplier_service = SupplierService::new(supplier_logger, supplier_repository);
 
         Self {
             capa_service,
             risk_service,
+            supplier_service,
             capa_records: Arc::new(RwLock::new(Vec::new())),
             risk_assessments: Arc::new(RwLock::new(Vec::new())),
+            suppliers: Arc::new(RwLock::new(Vec::new())),
             token_manager: TokenManager::new(),
         }
     }
@@ -150,6 +162,13 @@ async fn get_metrics(State(state): State<ApiState>) -> impl IntoResponse {
     };
 
     (StatusCode::OK, Json(MetricsResponse { capa_metrics, risk_report })).into_response()
+}
+
+/// Handler for `GET /supplier_metrics`.
+async fn get_supplier_metrics(State(state): State<ApiState>) -> impl IntoResponse {
+    let suppliers = state.suppliers.read().unwrap().clone();
+    let metrics = SupplierMetrics::from_suppliers(&suppliers);
+    (StatusCode::OK, Json(metrics)).into_response()
 }
 
 /// Middleware: Enforces Bearer token authentication and scope validation.
@@ -188,6 +207,7 @@ pub fn router() -> Router {
 
     Router::new()
         .route("/metrics", get(get_metrics))
+        .route("/supplier_metrics", get(get_supplier_metrics))
         .layer(middleware::from_fn_with_state(state.clone(), token_auth))
         .with_state(state)
 }
@@ -214,12 +234,14 @@ mod tests {
     use crate::capa::{CapaPriority, CapaStatus, CapaType};
     use crate::risk::{RiskSeverity, RiskProbability};
     use axum::http::header::{AUTHORIZATION, HeaderValue};
+    use crate::supplier::{Supplier, SupplierStatus, SupplierMetrics};
 
     /// Build a router and underlying state for test purposes (FIRST compliant).
     async fn setup_test_router() -> (Router, ApiState) {
         let state = ApiState::new();
         let router = Router::new()
-            .route("/metrics", get(get_metrics))
+            .route("/metrics", get(super::get_metrics))
+            .route("/supplier_metrics", get(super::get_supplier_metrics))
             .layer(middleware::from_fn_with_state(state.clone(), super::token_auth))
             .with_state(state.clone());
         (router, state)
@@ -340,5 +362,60 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_supplier_metrics_endpoint() {
+        let (router, state) = setup_test_router().await;
+        let token = "supplier-token".to_string();
+        state.token_manager.insert_token(token.clone(), 60, vec!["metrics:read".to_string()]);
+
+        // Add sample suppliers
+        let mut suppliers_guard = state.suppliers.write().unwrap();
+        use uuid::Uuid;
+        suppliers_guard.extend(vec![
+            Supplier {
+                id: Uuid::new_v4(),
+                name: "Vendor1".to_string(),
+                contact_info: None,
+                status: SupplierStatus::Qualified,
+                qualification_date: None,
+                qualification_expiry_date: None,
+                approved_by: None,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+            },
+            Supplier {
+                id: Uuid::new_v4(),
+                name: "Vendor2".to_string(),
+                contact_info: None,
+                status: SupplierStatus::Pending,
+                qualification_date: None,
+                qualification_expiry_date: None,
+                approved_by: None,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+            },
+        ]);
+        drop(suppliers_guard);
+
+        // Perform request
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/supplier_metrics")
+                    .header(AUTHORIZATION, HeaderValue::from_str(&format!("Bearer {}", token)).unwrap())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
+        let parsed: SupplierMetrics = serde_json::from_slice(&body).expect("valid JSON");
+        assert_eq!(parsed.total_count, 2);
+        assert_eq!(parsed.qualified_count, 1);
     }
 }
