@@ -133,11 +133,16 @@ Each requirement broken into testable units with acceptance criteria
   - ✅ CAPA-TUI Integration - TASK-018
   - Advanced TUI features and user interaction
   - Performance optimization and scalability
-- **Phase 3**: Reporting + User Management + Training Records
+- **Phase 3**: Reporting + User Management + Training Records ✅ COMPLETED
   - ✅ JSON Metrics Endpoint and Axum API service (TASK-020, TASK-021)
   - Reporting Dashboard with FDA-required reports
   - Training Records and competency tracking
   - Supplier Management and vendor qualification
+- **Phase 4**: Performance Optimization & Compliance PDF Reporting (CURRENT)
+  - Response time <100 ms for API endpoints
+  - In-memory caching layer for metrics
+  - PDF export engine for compliance reports
+  - Further UX refinements and accessibility
 
 ## 7. Acceptance Criteria (Phase 2)
 
@@ -190,9 +195,9 @@ Each requirement broken into testable units with acceptance criteria
   - **S**: Single purpose: KPI reporting
   - **T**: Testable via simulated datasets
 
-### 2.7.5 Supplier Management & Qualification (IN PROGRESS)
+### 2.7.5 Supplier Management & Qualification (COMPLETED)
 
-- **REQ-SUP001**: Supplier Record Management (SCHEMA ✅)
+- **REQ-SUP001**: Supplier Record Management ✅ COMPLETED
   - **I**: Independent module; no CAPA dependency
   - **N**: Supplier types and risk categories configurable
   - **V**: Enables compliant supplier qualification evidence
@@ -207,6 +212,8 @@ Each requirement broken into testable units with acceptance criteria
   - **E**: 1 day for aggregation & display
   - **S**: Single purpose: KPI reporting
   - **T**: Testable via simulated datasets
+
+- **REQ-SUP003**: Supplier TUI Integration ✅ COMPLETED
 
 ### Acceptance Criteria – Supplier Management
 - **AC-SUP001**: System shall create, edit, qualify, and disqualify suppliers with full audit trail

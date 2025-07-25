@@ -28,6 +28,8 @@ use crate::audit::{AuditLogger, AuditManager};
 use crate::config::DatabaseConfig;
 use crate::database::Database;
 use crate::supplier::{Supplier, SupplierService, SupplierMetrics};
+use crate::training::{TrainingMetrics, TrainingRecord, TrainingService};
+use chrono::Duration as ChronoDuration;
 
 /// In-memory representation of an API token with TTL & scopes.
 #[derive(Clone, Debug)]
@@ -85,14 +87,20 @@ pub struct ApiState {
     pub risk_service: RiskManagementService,
     /// Supplier management service
     pub supplier_service: SupplierService,
+    /// Training management service
+    pub training_service: TrainingService,
     /// In-memory CAPA records used for aggregation
     pub capa_records: Arc<RwLock<Vec<CapaRecord>>>,
     /// In-memory risk assessments used for aggregation
     pub risk_assessments: Arc<RwLock<Vec<RiskAssessment>>>,
     /// In-memory supplier records used for aggregation
     pub suppliers: Arc<RwLock<Vec<Supplier>>>,
+    /// In-memory training records used for aggregation
+    pub training_records: Arc<RwLock<Vec<TrainingRecord>>>,
     /// Token manager holding API auth tokens
     pub token_manager: TokenManager,
+    /// Cached metrics response with expiry (performance optimization)
+    pub metrics_cache: Arc<RwLock<Option<(MetricsResponse, DateTime<Utc>)>>>,
 }
 
 impl ApiState {
@@ -120,20 +128,28 @@ impl ApiState {
         let supplier_repository = crate::supplier_repo::SupplierRepository::new(database.clone());
         let supplier_service = SupplierService::new(supplier_logger, supplier_repository);
 
+        // Training service setup
+        let training_logger = AuditLogger::new_test();
+        let training_repo = crate::training_repo::TrainingRepository::new(database.clone());
+        let training_service = TrainingService::new(training_logger, training_repo);
+
         Self {
             capa_service,
             risk_service,
             supplier_service,
+            training_service,
             capa_records: Arc::new(RwLock::new(Vec::new())),
             risk_assessments: Arc::new(RwLock::new(Vec::new())),
             suppliers: Arc::new(RwLock::new(Vec::new())),
+            training_records: Arc::new(RwLock::new(Vec::new())),
             token_manager: TokenManager::new(),
+            metrics_cache: Arc::new(RwLock::new(None)),
         }
     }
 }
 
 /// API response payload containing aggregated metrics.
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct MetricsResponse {
     /// Aggregated CAPA statistics
     pub capa_metrics: CapaMetrics,
@@ -143,6 +159,15 @@ pub struct MetricsResponse {
 
 /// Handler for `GET /metrics`.
 async fn get_metrics(State(state): State<ApiState>) -> impl IntoResponse {
+    const TTL_SEC: i64 = 2;
+    let now = Utc::now();
+    // Check cache first (fast path)
+    if let Some((cached, expires)) = state.metrics_cache.read().unwrap().clone() {
+        if now < expires {
+            return (StatusCode::OK, Json(cached)).into_response();
+        }
+    }
+
     // Gather a snapshot of data under read locks to ensure consistency.
     let capa_records = state.capa_records.read().unwrap().clone();
     let risk_assessments = state.risk_assessments.read().unwrap().clone();
@@ -161,13 +186,25 @@ async fn get_metrics(State(state): State<ApiState>) -> impl IntoResponse {
         }
     };
 
-    (StatusCode::OK, Json(MetricsResponse { capa_metrics, risk_report })).into_response()
+    let response = MetricsResponse { capa_metrics, risk_report };
+
+    // Store in cache
+    *state.metrics_cache.write().unwrap() = Some((response.clone(), now + ChronoDuration::seconds(TTL_SEC)));
+
+    (StatusCode::OK, Json(response)).into_response()
 }
 
 /// Handler for `GET /supplier_metrics`.
 async fn get_supplier_metrics(State(state): State<ApiState>) -> impl IntoResponse {
     let suppliers = state.suppliers.read().unwrap().clone();
     let metrics = SupplierMetrics::from_suppliers(&suppliers);
+    (StatusCode::OK, Json(metrics)).into_response()
+}
+
+/// Handler for `GET /training_metrics`.
+async fn get_training_metrics(State(state): State<ApiState>) -> impl IntoResponse {
+    let training_records = state.training_records.read().unwrap().clone();
+    let metrics = state.training_service.calculate_metrics(&training_records);
     (StatusCode::OK, Json(metrics)).into_response()
 }
 
@@ -208,6 +245,7 @@ pub fn router() -> Router {
     Router::new()
         .route("/metrics", get(get_metrics))
         .route("/supplier_metrics", get(get_supplier_metrics))
+        .route("/training_metrics", get(get_training_metrics))
         .layer(middleware::from_fn_with_state(state.clone(), token_auth))
         .with_state(state)
 }
@@ -235,6 +273,7 @@ mod tests {
     use crate::risk::{RiskSeverity, RiskProbability};
     use axum::http::header::{AUTHORIZATION, HeaderValue};
     use crate::supplier::{Supplier, SupplierStatus, SupplierMetrics};
+    use crate::training::{TrainingRecord, TrainingStatus, TrainingMetrics};
 
     /// Build a router and underlying state for test purposes (FIRST compliant).
     async fn setup_test_router() -> (Router, ApiState) {
@@ -242,6 +281,7 @@ mod tests {
         let router = Router::new()
             .route("/metrics", get(super::get_metrics))
             .route("/supplier_metrics", get(super::get_supplier_metrics))
+            .route("/training_metrics", get(super::get_training_metrics))
             .layer(middleware::from_fn_with_state(state.clone(), super::token_auth))
             .with_state(state.clone());
         (router, state)
@@ -417,5 +457,60 @@ mod tests {
         let parsed: SupplierMetrics = serde_json::from_slice(&body).expect("valid JSON");
         assert_eq!(parsed.total_count, 2);
         assert_eq!(parsed.qualified_count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_training_metrics_endpoint() {
+        let (router, state) = setup_test_router().await;
+
+        // Add one sample training record to state
+        let mut records = state.training_records.write().unwrap();
+        records.push(TrainingRecord {
+            id: Uuid::new_v4(),
+            employee_id: "emp1".to_string(),
+            training_item: "QMS Overview".to_string(),
+            mandatory: true,
+            assigned_by: "manager".to_string(),
+            due_date: chrono::Utc::now().date_naive(),
+            completion_date: None,
+            status: TrainingStatus::Pending,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        });
+        drop(records);
+
+        // Obtain valid token
+        let default_token = state.token_manager.tokens.read().unwrap().keys().next().unwrap().clone();
+        let req = Request::builder()
+            .method(Method::GET)
+            .uri("/training_metrics")
+            .header(AUTHORIZATION, HeaderValue::from_str(&format!("Bearer {}", default_token)).unwrap())
+            .body(Body::empty())
+            .unwrap();
+        let resp = router.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let bytes = hyper::body::to_bytes(resp.into_body()).await.unwrap();
+        let metrics: TrainingMetrics = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(metrics.total_count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_metrics_endpoint_cached() {
+        use axum::http::header::{AUTHORIZATION, HeaderValue};
+        let (router, state) = setup_test_router().await;
+        // Obtain token
+        let default_token = state.token_manager.tokens.read().unwrap().keys().next().unwrap().clone();
+        let req = |uri: &str| Request::builder()
+            .method(Method::GET)
+            .uri(uri)
+            .header(AUTHORIZATION, HeaderValue::from_str(&format!("Bearer {}", default_token)).unwrap())
+            .body(Body::empty())
+            .unwrap();
+        // First request – populates cache
+        let resp1 = router.clone().oneshot(req("/metrics")).await.unwrap();
+        assert_eq!(resp1.status(), StatusCode::OK);
+        // Second request – should hit cache
+        let resp2 = router.oneshot(req("/metrics")).await.unwrap();
+        assert_eq!(resp2.status(), StatusCode::OK);
     }
 }
