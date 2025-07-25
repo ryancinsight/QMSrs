@@ -172,9 +172,9 @@ Each requirement broken into testable units with acceptance criteria
   - **S**: Authentication/authorization responsibility
   - **T**: Tested with positive, missing, and invalid token scenarios – all passing
 
-### 2.7.4 Training Records & Competency Tracking (IN PROGRESS)
+### 2.7.4 Training Records & Competency Tracking ✅ **COMPLETED**
 
-- **REQ-TRAIN001**: Employee Training Record Management (SCHEMA ✅)
+- **REQ-TRAIN001**: Employee Training Record Management ✅ **COMPLETED**
   - **I**: Independent module for training data; no CAPA dependency
   - **N**: Training types (SOP, Policy, Safety) configurable
   - **V**: Ensures personnel competency evidence for audits
@@ -182,7 +182,7 @@ Each requirement broken into testable units with acceptance criteria
   - **S**: Single responsibility: training management
   - **T**: Testable via training scenarios and metric calculations
 
-- **REQ-TRAIN002**: Training Metrics Dashboard Integration
+- **REQ-TRAIN002**: Training Metrics Dashboard Integration ✅ **COMPLETED**
   - **I**: Aggregates data from training module only
   - **N**: KPI formulas adjustable (completion %, overdue count)
   - **V**: Provides at-a-glance compliance status

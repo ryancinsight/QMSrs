@@ -347,6 +347,22 @@ impl Database {
         Ok(())
     }
 
+    /// Execute a closure with a pooled SQLite connection.
+    ///
+    /// This helper keeps the internal connection pool encapsulated while
+    /// still allowing caller modules (e.g. repository layers) to perform
+    /// custom queries in a safe, FDA-compliant manner without duplicating
+    /// connection-handling boilerplate.
+    pub fn with_connection<F, T>(&self, func: F) -> Result<T>
+    where
+        F: FnOnce(&Connection) -> Result<T>,
+    {
+        let conn = self.pool.get().map_err(|e| QmsError::Database {
+            message: format!("Failed to get database connection: {}", e),
+        })?;
+        func(&conn)
+    }
+
     /// Insert audit trail entry
     pub fn insert_audit_entry(&self, entry: &AuditLogEntry) -> Result<()> {
         let conn = self.pool.get()

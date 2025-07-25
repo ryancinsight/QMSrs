@@ -28,6 +28,7 @@ pub mod ui;
 pub mod capa;  // TASK-017: CAPA workflow management
 pub mod api; // Phase 3: RESTful API integration
 pub mod training; // Phase 3: Training records module
+pub mod training_repo; // Phase 3: Training records persistence layer
 
 pub use error::{QmsError, Result};
 

@@ -22,12 +22,12 @@
 - **Advanced Reporting**: Live CAPA & Risk metrics via API ✅ COMPLETED
 - **TUI Enhancements**: Reports tab consuming API
 - **Authentication**: Token-based security layer ✅ COMPLETED
-- **Training Records**: Employee competency tracking (Schema complete) 🔄 IN PROGRESS
+- **Training Records**: Employee competency tracking ✅ COMPLETED
 
 ## 📊 Test Coverage
 
-- **Total Tests**: 69 tests
-- **Passing**: 69 tests (100%)
+- **Total Tests**: 75 tests
+- **Passing**: 75 tests (100%)
 - **CAPA System**: 12/12 tests passing ✅
 - **Core Systems**: All critical functionality tested
 - **Compliance**: FDA 21 CFR Part 820 validation tests included
