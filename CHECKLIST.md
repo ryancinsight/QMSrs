@@ -243,13 +243,48 @@
   - **Status**: ✅ COMPLETED - Reports tab displays live CAPA/Risk metrics via API
 
 ### 3.3 Security Extensions
-- [ ] **TASK-023**: Implement token-based API authentication
+- [x] **TASK-023**: Implement token-based API authentication ✅ **COMPLETED**
   - **R**: Security Engineer
   - **A**: Security Lead
   - **C**: DevOps, Compliance
   - **I**: Stakeholders
   - **Dependencies**: TASK-020
-  - **Tests**: Positive & negative authentication scenarios
+  - **Tests**: All authentication tests passing (3/3) – positive, missing token, invalid token
+  - **Status**: ✅ COMPLETED – Bearer token authentication with TTL & scope validation integrated into Axum middleware, 100% test coverage
+  - **Implementation Details**:
+    - ✅ Added `TokenManager` and `ApiToken` structures within `src/api.rs` for in-memory token storage with configurable TTL and scopes
+    - ✅ Implemented `token_auth` middleware enforcing `Authorization: Bearer <token>` header
+    - ✅ Default 24-hour metrics-read token generated at startup, logged via `tracing`
+    - ✅ Updated `ApiState` to include `token_manager`
+    - ✅ Added three FIRST-compliant tests: valid token success, missing token 401, invalid token 401
+    - ✅ Updated documentation (PRD, README) to reflect completed security extension
+
+### 3.4 Training Records & Competency Tracking
+- [ ] **TASK-024**: Implement core Training Records module
+  - **R**: Developer
+  - **A**: Tech Lead
+  - **C**: QA, Compliance
+  - **I**: HR, Users
+  - **Dependencies**: TASK-020
+  - **Tests**: Training CRUD, metrics calculation (FIRST)
+  - **Status**: 🔄 IN PROGRESS – Module added with domain logic and tests, database integration pending
+
+- [x] **TASK-025**: Extend database schema for training records ✅ **COMPLETED**
+  - **R**: DBA
+  - **A**: Tech Lead
+  - **C**: Developer, Compliance
+  - **I**: QA
+  - **Dependencies**: TASK-024
+  - **Tests**: Schema migration, referential integrity (2 new DB tests) – passing
+  - **Status**: ✅ COMPLETED – training_records table & index added in `initialize_schema`, test verifies existence
+
+- [ ] **TASK-026**: Integrate Training module into TUI
+  - **R**: Developer
+  - **A**: Tech Lead
+  - **C**: UX, QA
+  - **I**: Users
+  - **Dependencies**: TASK-024
+  - **Tests**: Navigation, data entry, validation
   - **Status**: ⏳ PENDING
 
 ## Phase Completion Criteria (updated)

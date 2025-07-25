@@ -163,11 +163,29 @@ Each requirement broken into testable units with acceptance criteria
 ### 2.7.2 Advanced Reporting Dashboard ✅ COMPLETED
 - **REQ-REP001**: TUI Reports Tab to fetch live metrics via API ✅ COMPLETED
 
-### 2.7.3 External System Authentication
+### 2.7.3 External System Authentication ✅ COMPLETED
 - **REQ-AUTH001**: API token-based authentication
   - **I**: Guards only API routes
   - **N**: Token TTL and scopes configurable
   - **V**: Secures external access channels
-  - **E**: 1 day implementation
+  - **E**: 1 day implementation (actual: 0.5 day)
   - **S**: Authentication/authorization responsibility
-  - **T**: Testable with positive & negative token tests
+  - **T**: Tested with positive, missing, and invalid token scenarios – all passing
+
+### 2.7.4 Training Records & Competency Tracking (IN PROGRESS)
+
+- **REQ-TRAIN001**: Employee Training Record Management (SCHEMA ✅)
+  - **I**: Independent module for training data; no CAPA dependency
+  - **N**: Training types (SOP, Policy, Safety) configurable
+  - **V**: Ensures personnel competency evidence for audits
+  - **E**: 2 days for core CRUD & metrics
+  - **S**: Single responsibility: training management
+  - **T**: Testable via training scenarios and metric calculations
+
+- **REQ-TRAIN002**: Training Metrics Dashboard Integration
+  - **I**: Aggregates data from training module only
+  - **N**: KPI formulas adjustable (completion %, overdue count)
+  - **V**: Provides at-a-glance compliance status
+  - **E**: 1 day for metrics aggregation
+  - **S**: Single purpose: KPI reporting
+  - **T**: Testable via simulated datasets

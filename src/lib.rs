@@ -27,6 +27,7 @@ pub mod security;
 pub mod ui;
 pub mod capa;  // TASK-017: CAPA workflow management
 pub mod api; // Phase 3: RESTful API integration
+pub mod training; // Phase 3: Training records module
 
 pub use error::{QmsError, Result};
 
