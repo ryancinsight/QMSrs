@@ -147,8 +147,32 @@ impl TuiApp {
 
     /// Handle enter key
     pub fn handle_enter(&mut self) {
-        // Implementation for handling enter key press
-        // This would typically trigger actions based on current selection
+        match self.current_tab {
+            TabState::Dashboard => {
+                if let Some(selected) = self.dashboard_list_state.selected() {
+                    println!("Dashboard item {} selected", selected);
+                    // TODO: Implement action for the selected dashboard item
+                }
+            }
+            TabState::Documents => {
+                if let Some(selected) = self.documents_list_state.selected() {
+                    println!("Document {} opened", selected);
+                    // TODO: Implement action for opening the selected document
+                }
+            }
+            TabState::AuditTrail => {
+                if let Some(selected) = self.audit_list_state.selected() {
+                    println!("Audit trail item {} selected", selected);
+                    // TODO: Implement action for the selected audit trail item
+                }
+            }
+            TabState::Reports => {
+                if let Some(selected) = self.reports_list_state.selected() {
+                    println!("Report {} selected", selected);
+                    // TODO: Implement action for the selected report
+                }
+            }
+        }
     }
 
     /// Main render function
