@@ -163,11 +163,11 @@ Each requirement broken into testable units with acceptance criteria
 ### 2.7.2 Advanced Reporting Dashboard ✅ COMPLETED
 - **REQ-REP001**: TUI Reports Tab to fetch live metrics via API ✅ COMPLETED
 
-### 2.7.3 External System Authentication
+### 2.7.3 External System Authentication ✅ COMPLETED
 - **REQ-AUTH001**: API token-based authentication
   - **I**: Guards only API routes
   - **N**: Token TTL and scopes configurable
   - **V**: Secures external access channels
-  - **E**: 1 day implementation
+  - **E**: 1 day implementation (actual: 0.5 day)
   - **S**: Authentication/authorization responsibility
-  - **T**: Testable with positive & negative token tests
+  - **T**: Tested with positive, missing, and invalid token scenarios – all passing
