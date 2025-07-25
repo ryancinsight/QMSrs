@@ -80,7 +80,10 @@ impl TuiApp {
 
     /// Move to next menu item
     fn next_menu_item(&mut self) {
-        self.selected_menu_item += 1;
+        let max_items = self.menu_item_count();
+        if self.selected_menu_item + 1 < max_items {
+            self.selected_menu_item += 1;
+        }
     }
 
     /// Handle menu item selection
