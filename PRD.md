@@ -134,6 +134,7 @@ Each requirement broken into testable units with acceptance criteria
   - Advanced TUI features and user interaction
   - Performance optimization and scalability
 - **Phase 3**: Reporting + User Management + Training Records
+  - ✅ JSON Metrics Endpoint and Axum API service (TASK-020, TASK-021)
   - Reporting Dashboard with FDA-required reports
   - Training Records and competency tracking
   - Supplier Management and vendor qualification
@@ -156,14 +157,8 @@ Each requirement broken into testable units with acceptance criteria
 
 ## 2.7 Phase 3 Specific Requirements (CURRENT FOCUS)
 
-### 2.7.1 RESTful API Integration
-- **REQ-API001**: JSON Metrics Endpoint exposing CAPA and Risk summaries
-  - **I**: Independent service layer using Axum
-  - **N**: API routes and serialization configurable
-  - **V**: Enables external dashboards & integrations
-  - **E**: 1 day for initial endpoint
-  - **S**: Single responsibility: data exposure
-  - **T**: Testable with isolated HTTP requests
+### 2.7.1 RESTful API Integration ✅ COMPLETED
+- **REQ-API001**: JSON Metrics Endpoint exposing CAPA and Risk summaries ✅ COMPLETED
 
 ### 2.7.2 Advanced Reporting Dashboard
 - **REQ-REP001**: TUI Reports Tab to fetch live metrics via API
