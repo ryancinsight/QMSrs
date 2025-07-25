@@ -22,6 +22,7 @@
 - **Advanced Reporting**: Live CAPA & Risk metrics via API ✅ COMPLETED
 - **TUI Enhancements**: Reports tab consuming API
 - **Authentication**: Token-based security layer ✅ COMPLETED
+- **Training Records**: Employee competency tracking 🔄 IN PROGRESS
 
 ## 📊 Test Coverage
 

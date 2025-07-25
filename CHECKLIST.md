@@ -259,6 +259,34 @@
     - ✅ Added three FIRST-compliant tests: valid token success, missing token 401, invalid token 401
     - ✅ Updated documentation (PRD, README) to reflect completed security extension
 
+### 3.4 Training Records & Competency Tracking
+- [ ] **TASK-024**: Implement core Training Records module
+  - **R**: Developer
+  - **A**: Tech Lead
+  - **C**: QA, Compliance
+  - **I**: HR, Users
+  - **Dependencies**: TASK-020
+  - **Tests**: Training CRUD, metrics calculation (FIRST)
+  - **Status**: 🔄 IN PROGRESS – Module added with domain logic and tests, database integration pending
+
+- [ ] **TASK-025**: Extend database schema for training records
+  - **R**: DBA
+  - **A**: Tech Lead
+  - **C**: Developer, Compliance
+  - **I**: QA
+  - **Dependencies**: TASK-024
+  - **Tests**: Schema migration, referential integrity
+  - **Status**: ⏳ PENDING
+
+- [ ] **TASK-026**: Integrate Training module into TUI
+  - **R**: Developer
+  - **A**: Tech Lead
+  - **C**: UX, QA
+  - **I**: Users
+  - **Dependencies**: TASK-024
+  - **Tests**: Navigation, data entry, validation
+  - **Status**: ⏳ PENDING
+
 ## Phase Completion Criteria (updated)
 - [ ] All Phase 3 tasks completed with RACI sign-offs
 - [ ] 100% test coverage including API layer
