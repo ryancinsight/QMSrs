@@ -17,11 +17,11 @@
 - **Metrics & Reporting**: CAPA performance metrics and compliance reporting
 - **Effectiveness Verification**: Built-in verification workflow
 
-### 🚧 **Phase 3: Integration & UI (IN PROGRESS)**
-- **TUI Interface**: Terminal-based user interface (basic implementation)
-- **Document Management**: Document control system (basic implementation)
-- **Advanced Reporting**: Enhanced compliance reports
-- **API Integration**: REST API for external systems
+### 🚧 **Phase 3: API & Reporting Integration (CURRENT DEVELOPMENT)**
+- **RESTful API**: JSON metrics endpoint (Axum) ✅ IMPLEMENTED
+- **Advanced Reporting**: Live CAPA & Risk metrics via API
+- **TUI Enhancements**: Reports tab consuming API
+- **Authentication**: Token-based security layer
 
 ## 📊 Test Coverage
 

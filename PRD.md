@@ -2,7 +2,7 @@
 
 ## 1. Product Overview
 **Product Name**: QMSrs - FDA Compliant Medical Device Quality Management System
-**Version**: 1.1.0
+**Version**: 1.2.0
 **Target**: FDA 21 CFR Part 820 compliance
 **Platform**: Terminal-based application using Rust and ratatui
 
@@ -10,8 +10,8 @@
 
 ### 2.1 Independent Requirements
 - **REQ-001**: Document Control System - Manage controlled documents with version control, approval workflows ✅ COMPLETED
-- **REQ-002**: Risk Management Module - ISO 14971 compliant risk assessment and mitigation tracking 🔄 IN PROGRESS
-- **REQ-003**: CAPA System - Corrective and Preventive Action workflow management 
+- **REQ-002**: Risk Management Module - ISO 14971 compliant risk assessment and mitigation tracking ✅ COMPLETED
+- **REQ-003**: CAPA System - Corrective and Preventive Action workflow management ✅ COMPLETED
 - **REQ-004**: Audit Trail - Complete audit logging of all system activities ✅ COMPLETED
 - **REQ-005**: User Management - Role-based access control (RBAC) with FDA compliant user authentication ✅ COMPLETED
 
@@ -30,14 +30,14 @@
 ### 2.4 Estimable Components
 - **Core TUI Framework**: 2-3 days ✅ COMPLETED
 - **Document Control**: 3-4 days ✅ COMPLETED
-- **Risk Management**: 4-5 days 🔄 IN PROGRESS
+- **Risk Management**: 4-5 days ✅ COMPLETED
 - **CAPA System**: 3-4 days
 - **Audit Trail**: 2-3 days ✅ COMPLETED
 
 ### 2.5 Small, Testable Features
 Each requirement broken into testable units with acceptance criteria
 
-## 2.6 Phase 2 Specific Requirements (CURRENT FOCUS)
+## 2.6 Phase 2 Specific Requirements (COMPLETED)
 
 ### 2.6.1 Risk Management Module (ISO 14971)
 - **REQ-R001**: Risk Assessment Creation and Management
@@ -126,11 +126,11 @@ Each requirement broken into testable units with acceptance criteria
   - ✅ User authentication and session management (TASK-012)
   - ✅ Main application integration with async runtime (TASK-013)
   - ✅ End-to-end TUI workflow testing (TASK-014)
-- **Phase 2**: Risk Management + CAPA System (🔄 CURRENT DEVELOPMENT)
-  - 🔄 Risk Management Module (ISO 14971 compliance) - TASK-015
-  - 🔄 Risk Management Database Schema - TASK-016  
-  - CAPA System (Corrective and Preventive Action workflow) - TASK-017
-  - CAPA-TUI Integration - TASK-018
+- **Phase 2**: Risk Management + CAPA System ✅ COMPLETED
+  - ✅ Risk Management Module (ISO 14971 compliance) - TASK-015
+  - ✅ Risk Management Database Schema - TASK-016  
+  - ✅ CAPA System (Corrective and Preventive Action workflow) - TASK-017
+  - ✅ CAPA-TUI Integration - TASK-018
   - Advanced TUI features and user interaction
   - Performance optimization and scalability
 - **Phase 3**: Reporting + User Management + Training Records
@@ -153,3 +153,32 @@ Each requirement broken into testable units with acceptance criteria
 - **AC-C003**: CAPA effectiveness verification shall be tracked and documented
 - **AC-C004**: All CAPA activities shall maintain complete audit trail
 - **AC-C005**: CAPA system shall support FDA inspection requirements
+
+## 2.7 Phase 3 Specific Requirements (CURRENT FOCUS)
+
+### 2.7.1 RESTful API Integration
+- **REQ-API001**: JSON Metrics Endpoint exposing CAPA and Risk summaries
+  - **I**: Independent service layer using Axum
+  - **N**: API routes and serialization configurable
+  - **V**: Enables external dashboards & integrations
+  - **E**: 1 day for initial endpoint
+  - **S**: Single responsibility: data exposure
+  - **T**: Testable with isolated HTTP requests
+
+### 2.7.2 Advanced Reporting Dashboard
+- **REQ-REP001**: TUI Reports Tab to fetch live metrics via API
+  - **I**: Independent from core workflows
+  - **N**: Additional reports configurable
+  - **V**: Provides near-real-time compliance visibility
+  - **E**: 1-2 days for integration
+  - **S**: Focused on rendering reports
+  - **T**: Testable via TUI workflow tests
+
+### 2.7.3 External System Authentication
+- **REQ-AUTH001**: API token-based authentication
+  - **I**: Guards only API routes
+  - **N**: Token TTL and scopes configurable
+  - **V**: Secures external access channels
+  - **E**: 1 day implementation
+  - **S**: Authentication/authorization responsibility
+  - **T**: Testable with positive & negative token tests
