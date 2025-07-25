@@ -214,33 +214,33 @@
 ## Phase 3: API & Reporting Integration (CURRENT DEVELOPMENT)
 
 ### 3.1 RESTful API Service
-- [ ] **TASK-020**: Implement Axum-based API service
+- [x] **TASK-020**: Implement Axum-based API service
   - **R**: Developer
   - **A**: Tech Lead
   - **C**: QA, Security
   - **I**: Stakeholders
   - **Dependencies**: TASK-016A, TASK-018
   - **Tests**: API metrics endpoint returns correct JSON (FIRST)
-  - **Status**: 🔄 IN PROGRESS
+  - **Status**: ✅ COMPLETED - API service operational, unit tests passing
 
-- [ ] **TASK-021**: Expose `/metrics` endpoint aggregating CAPA & Risk data
+- [x] **TASK-021**: Expose `/metrics` endpoint aggregating CAPA & Risk data
   - **R**: Developer
   - **A**: Tech Lead
   - **C**: Compliance, UX
   - **I**: External Integrators
   - **Dependencies**: TASK-020
   - **Tests**: Response schema validation, status 200
-  - **Status**: 🔄 IN PROGRESS
+  - **Status**: ✅ COMPLETED - Metrics endpoint returns validated JSON
 
 ### 3.2 Reporting Dashboard Enhancements
-- [ ] **TASK-022**: Update TUI Reports tab to fetch live data from API
+- [x] **TASK-022**: Update TUI Reports tab to fetch live data from API
   - **R**: Developer
   - **A**: Tech Lead
   - **C**: UX, Compliance
   - **I**: Users
   - **Dependencies**: TASK-021
   - **Tests**: TUI workflow shows refreshed metrics
-  - **Status**: ⏳ PENDING
+  - **Status**: ✅ COMPLETED - Reports tab displays live CAPA/Risk metrics via API
 
 ### 3.3 Security Extensions
 - [ ] **TASK-023**: Implement token-based API authentication
