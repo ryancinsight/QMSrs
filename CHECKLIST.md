@@ -293,6 +293,44 @@
   - **Tests**: Navigation, data entry, validation
   - **Status**: ⏳ PENDING
 
+### 3.5 Supplier Management & Qualification
+
+- [ ] **TASK-027**: Extend database schema for suppliers (✅ implemented)
+  - **R**: DBA
+  - **A**: Tech Lead
+  - **C**: Developer, Compliance
+  - **I**: QA
+  - **Dependencies**: TASK-020
+  - **Tests**: Table existence, referential integrity – new DB test added
+  - **Status**: ✅ COMPLETED – suppliers table & index added in `initialize_schema`, test verifies existence
+
+- [ ] **TASK-028**: Implement Supplier domain & repository
+  - **R**: Developer
+  - **A**: Tech Lead
+  - **C**: QA, Compliance
+  - **I**: Procurement, Users
+  - **Dependencies**: TASK-027
+  - **Tests**: Supplier CRUD, qualification lifecycle (FIRST)
+  - **Status**: ✅ COMPLETED – `supplier.rs` & `supplier_repo.rs` with 5 new tests passing
+
+- [ ] **TASK-029**: Supplier metrics API endpoint
+  - **R**: Developer
+  - **A**: Tech Lead
+  - **C**: QA, Compliance
+  - **I**: External Integrators
+  - **Dependencies**: TASK-028
+  - **Tests**: JSON schema validation, KPI calculations
+  - **Status**: ⏳ PENDING
+
+- [ ] **TASK-030**: Integrate Supplier module into TUI
+  - **R**: Developer
+  - **A**: Tech Lead
+  - **C**: UX, QA
+  - **I**: Users
+  - **Dependencies**: TASK-028
+  - **Tests**: Navigation, data entry, validation
+  - **Status**: ⏳ PENDING
+
 ## Phase Completion Criteria (updated)
 - [ ] All Phase 3 tasks completed with RACI sign-offs
 - [ ] 100% test coverage including API layer

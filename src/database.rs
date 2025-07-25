@@ -308,6 +308,23 @@ impl Database {
             [],
         )?;
 
+        // TASK-027: Supplier Management schema
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS suppliers (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                contact_info TEXT,
+                qualification_status TEXT NOT NULL CHECK (qualification_status IN ('Pending','Qualified','Disqualified')),
+                qualification_date TEXT,
+                qualification_expiry_date TEXT,
+                approved_by TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (approved_by) REFERENCES users(id)
+            )",
+            [],
+        )?;
+
         // Create indexes for performance
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_audit_trail_timestamp ON audit_trail(timestamp)",
@@ -341,6 +358,12 @@ impl Database {
 
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_training_records_status ON training_records(status)",
+            [],
+        )?;
+
+        // TASK-027: Supplier Management schema
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_suppliers_status ON suppliers(qualification_status)",
             [],
         )?;
  
@@ -729,5 +752,16 @@ mod tests {
         let mut rows = stmt.query([]).unwrap();
         let exists = rows.next().unwrap().is_some();
         assert!(exists, "training_records table should exist");
+    }
+
+    #[test]
+    fn test_suppliers_table_exists() {
+        let db = Database::new(DatabaseConfig::default()).unwrap();
+        let conn = db.pool.get().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='suppliers'")
+            .unwrap();
+        let exists: bool = stmt.exists([]).unwrap();
+        assert!(exists, "suppliers table should exist");
     }
 }

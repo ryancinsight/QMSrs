@@ -189,3 +189,27 @@ Each requirement broken into testable units with acceptance criteria
   - **E**: 1 day for metrics aggregation
   - **S**: Single purpose: KPI reporting
   - **T**: Testable via simulated datasets
+
+### 2.7.5 Supplier Management & Qualification (IN PROGRESS)
+
+- **REQ-SUP001**: Supplier Record Management (SCHEMA ✅)
+  - **I**: Independent module; no CAPA dependency
+  - **N**: Supplier types and risk categories configurable
+  - **V**: Enables compliant supplier qualification evidence
+  - **E**: 2 days for core CRUD & metrics
+  - **S**: Single responsibility: supplier management
+  - **T**: Testable via supplier lifecycle scenarios
+
+- **REQ-SUP002**: Supplier Metrics Dashboard Integration
+  - **I**: Aggregates data from supplier module only
+  - **N**: KPI formulas adjustable (qualified %, disqualified count)
+  - **V**: Provides compliance insights on supply chain
+  - **E**: 1 day for aggregation & display
+  - **S**: Single purpose: KPI reporting
+  - **T**: Testable via simulated datasets
+
+### Acceptance Criteria – Supplier Management
+- **AC-SUP001**: System shall create, edit, qualify, and disqualify suppliers with full audit trail
+- **AC-SUP002**: Supplier qualification status shall be traceable and encrypted
+- **AC-SUP003**: Supplier metrics shall be accurate and available via API
+- **AC-SUP004**: All supplier data actions shall satisfy FDA Part 11 signature/logging requirements
