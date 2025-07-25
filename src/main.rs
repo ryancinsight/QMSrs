@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
     println!("Press any key to continue or Ctrl+C to exit...");
     
     // Wait a moment for user to read
-    tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+    tokio::time::sleep(tokio::time::Duration::from_millis(USER_READ_DELAY_MS)).await;
     
     // Start TUI application
     start_tui().await?;
