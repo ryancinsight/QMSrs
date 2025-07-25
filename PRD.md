@@ -174,7 +174,7 @@ Each requirement broken into testable units with acceptance criteria
 
 ### 2.7.4 Training Records & Competency Tracking (IN PROGRESS)
 
-- **REQ-TRAIN001**: Employee Training Record Management
+- **REQ-TRAIN001**: Employee Training Record Management (SCHEMA ✅)
   - **I**: Independent module for training data; no CAPA dependency
   - **N**: Training types (SOP, Policy, Safety) configurable
   - **V**: Ensures personnel competency evidence for audits

@@ -269,14 +269,14 @@
   - **Tests**: Training CRUD, metrics calculation (FIRST)
   - **Status**: 🔄 IN PROGRESS – Module added with domain logic and tests, database integration pending
 
-- [ ] **TASK-025**: Extend database schema for training records
+- [x] **TASK-025**: Extend database schema for training records ✅ **COMPLETED**
   - **R**: DBA
   - **A**: Tech Lead
   - **C**: Developer, Compliance
   - **I**: QA
   - **Dependencies**: TASK-024
-  - **Tests**: Schema migration, referential integrity
-  - **Status**: ⏳ PENDING
+  - **Tests**: Schema migration, referential integrity (2 new DB tests) – passing
+  - **Status**: ✅ COMPLETED – training_records table & index added in `initialize_schema`, test verifies existence
 
 - [ ] **TASK-026**: Integrate Training module into TUI
   - **R**: Developer
