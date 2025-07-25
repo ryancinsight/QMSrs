@@ -149,7 +149,7 @@ impl ApiState {
 }
 
 /// API response payload containing aggregated metrics.
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct MetricsResponse {
     /// Aggregated CAPA statistics
     pub capa_metrics: CapaMetrics,

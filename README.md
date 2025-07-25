@@ -27,8 +27,8 @@
 
 ## 📊 Test Coverage
 
-- **Total Tests**: 92 tests
-- **Passing**: 92 tests (100%)
+- **Total Tests**: 93 tests
+- **Passing**: 93 tests (100%)
 - **CAPA System**: 12/12 tests passing ✅
 - **Core Systems**: All critical functionality tested
 - **Compliance**: FDA 21 CFR Part 820 validation tests included

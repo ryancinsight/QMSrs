@@ -12,8 +12,15 @@ use std::time::{Duration, Instant};
 use crate::api::MetricsResponse;
 use crate::supplier::SupplierMetrics;
 use crate::training::TrainingMetrics;
-// Depending on crate path, this file is in qmsrs crate; referencing crate to api.
-use reqwest;
+use tokio::sync::mpsc::{UnboundedSender, UnboundedReceiver, unbounded_channel};
+
+/// Messages returned from async API fetch tasks
+#[derive(Debug)]
+enum MetricsMessage {
+    CapaRisk(MetricsResponse),
+    Supplier(SupplierMetrics),
+    Training(TrainingMetrics),
+}
 
 /// Main TUI application state
 pub struct TuiApp {
@@ -36,6 +43,9 @@ pub struct TuiApp {
     // ADD
     pub supplier_metrics: Option<SupplierMetrics>,
     pub training_metrics: Option<TrainingMetrics>,
+    // Channel for receiving async metrics updates
+    api_rx: UnboundedReceiver<MetricsMessage>,
+    api_tx: UnboundedSender<MetricsMessage>,
 }
 
 impl TuiApp {
@@ -61,7 +71,10 @@ impl TuiApp {
         supplier_state.select(Some(0));
         let mut training_state = ratatui::widgets::ListState::default();
         training_state.select(Some(0));
-        
+
+        // Create channel for async API updates
+        let (tx, rx) = unbounded_channel();
+
         Self {
             should_quit: false,
             current_tab: TabState::Dashboard,
@@ -78,6 +91,8 @@ impl TuiApp {
             last_metrics_fetch: Instant::now() - Duration::from_secs(10),
             supplier_metrics: None,
             training_metrics: None,
+            api_rx: rx,
+            api_tx: tx,
         }
     }
 
@@ -507,35 +522,61 @@ TabState::Suppliers => self.supplier_list_state.select(Some(self.get_supplier_li
     /// Refresh metrics from the API if the refresh interval has elapsed.
     fn refresh_metrics(&mut self) {
         if self.last_metrics_fetch.elapsed() < Duration::from_secs(5) {
-            return;
+            // Still process any queued messages even if we do not request new data
+        } else {
+            // Spawn non-blocking tasks for each endpoint
+            let tx = self.api_tx.clone();
+            tokio::spawn(async move {
+                if let Ok(resp) = reqwest::get("http://127.0.0.1:3000/metrics").await {
+                    if resp.status().is_success() {
+                        if let Ok(data) = resp.json::<MetricsResponse>().await {
+                            let _ = tx.send(MetricsMessage::CapaRisk(data));
+                        }
+                    }
+                }
+            });
+
+            let tx_sup = self.api_tx.clone();
+            tokio::spawn(async move {
+                if let Ok(resp) = reqwest::get("http://127.0.0.1:3000/supplier_metrics").await {
+                    if resp.status().is_success() {
+                        if let Ok(data) = resp.json::<SupplierMetrics>().await {
+                            let _ = tx_sup.send(MetricsMessage::Supplier(data));
+                        }
+                    }
+                }
+            });
+
+            let tx_train = self.api_tx.clone();
+            tokio::spawn(async move {
+                if let Ok(resp) = reqwest::get("http://127.0.0.1:3000/training_metrics").await {
+                    if resp.status().is_success() {
+                        if let Ok(data) = resp.json::<TrainingMetrics>().await {
+                            let _ = tx_train.send(MetricsMessage::Training(data));
+                        }
+                    }
+                }
+            });
+
+            self.last_metrics_fetch = Instant::now();
         }
 
-        // Attempt to fetch metrics; failures are silently ignored but logged.
-        if let Ok(response) = reqwest::blocking::get("http://127.0.0.1:3000/metrics") {
-            if response.status().is_success() {
-                if let Ok(metrics) = response.json::<MetricsResponse>() {
-                    self.metrics = Some(metrics);
+        // Non-blocking processing of incoming messages
+        loop {
+            match self.api_rx.try_recv() {
+                Ok(MetricsMessage::CapaRisk(m)) => {
+                    self.metrics = Some(m);
                 }
+                Ok(MetricsMessage::Supplier(s)) => {
+                    self.supplier_metrics = Some(s);
+                }
+                Ok(MetricsMessage::Training(t)) => {
+                    self.training_metrics = Some(t);
+                }
+                Err(tokio::sync::mpsc::error::TryRecvError::Empty) => break,
+                Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => break,
             }
         }
-        // NEW: fetch supplier metrics
-        if let Ok(response) = reqwest::blocking::get("http://127.0.0.1:3000/supplier_metrics") {
-            if response.status().is_success() {
-                if let Ok(metrics) = response.json::<SupplierMetrics>() {
-                    self.supplier_metrics = Some(metrics);
-                }
-            }
-        }
-        // NEW fetch training metrics
-        if let Ok(response) = reqwest::blocking::get("http://127.0.0.1:3000/training_metrics") {
-            if response.status().is_success() {
-                if let Ok(metrics) = response.json::<TrainingMetrics>() {
-                    self.training_metrics = Some(metrics);
-                }
-            }
-        }
-
-        self.last_metrics_fetch = Instant::now();
     }
 
     /// Construct list items for the Reports tab based on current metrics.
