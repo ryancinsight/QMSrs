@@ -17,14 +17,21 @@ pub fn init_tracing(config: &LoggingConfig) -> Result<tracing_appender::non_bloc
 
     // Set up rolling file appender for audit logs
     let fallback_dir = Path::new("/var/log/qms");
-    if !fallback_dir.exists() {
-        std::fs::create_dir_all(fallback_dir).map_err(|e| QmsError::FileSystem {
-            path: fallback_dir.display().to_string(),
-            message: format!("Failed to create fallback log directory: {}", e),
-        })?;
-    }
+    let log_dir = if let Some(parent) = log_path.parent() {
+        parent
+    } else {
+        // Only create fallback directory if we actually need to use it
+        if !fallback_dir.exists() {
+            std::fs::create_dir_all(fallback_dir).map_err(|e| QmsError::FileSystem {
+                path: fallback_dir.display().to_string(),
+                message: format!("Failed to create fallback log directory: {}", e),
+            })?;
+        }
+        fallback_dir
+    };
+    
     let file_appender = rolling::daily(
-        log_path.parent().unwrap_or(fallback_dir),
+        log_dir,
         log_path.file_name()
             .and_then(|name| name.to_str())
             .unwrap_or("qms-audit.log")

@@ -11,6 +11,10 @@ use crossterm::{
 };
 use std::io;
 
+// Constants for timing
+const USER_READ_DELAY_MS: u64 = 2000;  // 2 seconds for user to read messages
+const RENDER_LOOP_DELAY_MS: u64 = 50;  // 50ms for smooth rendering
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize the QMS system
@@ -39,7 +43,7 @@ async fn main() -> Result<()> {
     
     // Ask user if they want to start the TUI
     println!("\nStarting TUI interface...");
-    println!("Controls: Tab (navigate tabs), ↑↓ (navigate items), q (quit), Enter (select)");
+    println!("Controls: Tab/→← (navigate tabs), ↑↓/jk (navigate items), q/Esc (quit), Enter/Space (select), h/F1 (help)");
     println!("Press any key to continue or Ctrl+C to exit...");
     
     // Wait a moment for user to read
@@ -174,16 +178,22 @@ mod tests {
         app.move_down();
         println!("✓ 4. Audit trail tab navigation working");
         
-        // 5. Test tab switching to Reports
+        // 5. Test tab switching to CAPA
+        app.next_tab();
+        assert_eq!(app.current_tab, qmsrs::ui::TabState::Capa);
+        app.move_down();
+        println!("✓ 5. CAPA tab navigation working");
+        
+        // 6. Test tab switching to Reports
         app.next_tab();
         assert_eq!(app.current_tab, qmsrs::ui::TabState::Reports);
         app.move_down();
-        println!("✓ 5. Reports tab navigation working");
+        println!("✓ 6. Reports tab navigation working");
         
-        // 6. Test wrap-around navigation back to Dashboard
+        // 7. Test wrap-around navigation back to Dashboard
         app.next_tab();
         assert_eq!(app.current_tab, qmsrs::ui::TabState::Dashboard);
-        println!("✓ 6. Tab wrap-around navigation working");
+        println!("✓ 7. Tab wrap-around navigation working");
         
         // 7. Test error handling - ensure app remains stable
         for _ in 0..10 {
